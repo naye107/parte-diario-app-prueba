@@ -486,10 +486,6 @@ body:not(.auth-locked) .auth-overlay {
 }
 
 @media (max-width: 860px) {
-  .brand h1 {
-    font-size: 1.7rem;
-  }
-
   .app-shell {
     grid-template-columns: 1fr;
   }
@@ -500,7 +496,39 @@ body:not(.auth-locked) .auth-overlay {
     z-index: 20;
     min-height: auto;
     border-radius: 0 0 18px 18px;
-    padding: 0.9rem;
+    padding: 0.6rem 0.75rem 0.7rem;
+    gap: 0.55rem;
+  }
+
+  .brand {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    justify-items: start;
+    gap: 0.55rem;
+    text-align: left;
+  }
+
+  .brand-image {
+    width: 108px;
+    height: 42px;
+  }
+
+  .brand-text {
+    width: 100%;
+    text-align: center;
+    padding-right: 1.2rem;
+  }
+
+  .brand h1 {
+    font-size: 1.1rem;
+    line-height: 1.1;
+  }
+
+  .brand p {
+    font-size: 0.82rem;
+    margin-top: 0.1rem;
   }
 
   .menu-toggle {
@@ -510,6 +538,8 @@ body:not(.auth-locked) .auth-overlay {
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
     text-align: center;
+    min-height: 40px;
+    padding: 0.55rem 0.8rem;
   }
 
   .nav {
