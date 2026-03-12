@@ -123,6 +123,10 @@ label span {
   margin-top: 0.2rem;
 }
 
+.menu-toggle {
+  display: none;
+}
+
 .nav {
   display: grid;
   gap: 0.55rem;
@@ -499,21 +503,64 @@ body:not(.auth-locked) .auth-overlay {
     padding: 0.9rem;
   }
 
+  .menu-toggle {
+    display: block;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    text-align: center;
+  }
+
   .nav {
-    display: flex;
-    overflow-x: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
-    padding-bottom: 0.2rem;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
   }
 
   .nav-btn {
-    flex: 0 0 auto;
-    white-space: nowrap;
-    padding: 0.7rem 0.9rem;
+    width: 100%;
+    white-space: normal;
+    text-align: center;
+    padding: 0.65rem 0.75rem;
   }
 
   .sidebar-footer {
+    display: block;
+    margin-top: 0;
+    width: 100%;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-height 0.2s ease, opacity 0.2s ease;
+  }
+
+  .sidebar-footer p,
+  .sidebar-footer small,
+  .sidebar-footer .spacer {
     display: none;
+  }
+
+  .sidebar-footer #logoutBtn {
+    width: 100%;
+  }
+
+  body.sidebar-open .nav {
+    max-height: 380px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.sidebar-open .sidebar-footer {
+    max-height: 120px;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .page-header,
@@ -538,8 +585,7 @@ body:not(.auth-locked) .auth-overlay {
   .narrow-form-layout,
   .reports-grid,
   .toolbar-grid,
-  .row-fields-grid,
-  .nav {
+  .row-fields-grid {
     grid-template-columns: 1fr;
   }
 

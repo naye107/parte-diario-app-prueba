@@ -34,6 +34,7 @@ let networkListenersBound = false;
 let appInitialized = false;
 
 const els = {
+  menuToggleBtn: document.getElementById('menuToggleBtn'),
   connectionStatus: document.getElementById('connectionStatus'),
   navButtons: [...document.querySelectorAll('.nav-btn')],
   views: [...document.querySelectorAll('.view')],
@@ -130,8 +131,12 @@ function bindAuthEvents() {
 }
 
 function bindEvents() {
+  els.menuToggleBtn.addEventListener('click', toggleMobileMenu);
   els.navButtons.forEach(btn => {
-    btn.addEventListener('click', () => switchView(btn.dataset.view));
+    btn.addEventListener('click', () => {
+      switchView(btn.dataset.view);
+      closeMobileMenu();
+    });
   });
 
   els.goToPartes.addEventListener('click', () => switchView('partes'));
@@ -251,6 +256,7 @@ async function onLoginSubmit(event) {
 }
 
 async function onLogoutClick() {
+  closeMobileMenu();
   try {
     await fetch('./api/auth/logout', { method: 'POST' });
   } catch (_error) {
@@ -264,6 +270,16 @@ function switchView(viewName) {
   els.navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewName));
   els.views.forEach(view => view.classList.toggle('active', view.id === `view-${viewName}`));
   if (viewName === 'reportes') runReports();
+}
+
+function toggleMobileMenu() {
+  const isOpen = document.body.classList.toggle('sidebar-open');
+  els.menuToggleBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+}
+
+function closeMobileMenu() {
+  document.body.classList.remove('sidebar-open');
+  els.menuToggleBtn.setAttribute('aria-expanded', 'false');
 }
 
 function refreshAll() {
