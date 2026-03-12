@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#22543d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Parte Diario - Santa Teresa Bajo</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-locked">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-image" src="icons/logo.png" alt="Logo Parte Diario">
+        <div class="brand-text">
+          <h1>Parte Diario</h1>
+          <p>Santa Teresa Bajo</p>
+        </div>
+      </div>
+      <nav class="nav">
+        <button class="nav-btn active" data-view="dashboard">Resumen</button>
+        <button class="nav-btn" data-view="partes">Parte diario</button>
+        <button class="nav-btn" data-view="trabajadores">Trabajadores</button>
+        <button class="nav-btn" data-view="labores">Labores</button>
+        <button class="nav-btn" data-view="campos">Campos</button>
+        <button class="nav-btn" data-view="reportes">Reportes</button>
+        <button class="nav-btn" data-view="ajustes">Ajustes</button>
+      </nav>
+      <div class="sidebar-footer">
+        <p>AGRICOLA JAPURIMA S.A.</p>
+        <small>Fundo Santa Teresa Bajo - Huaura</small>
+        <div class="spacer"></div>
+        <button type="button" class="secondary-btn mini-btn" id="logoutBtn">Cerrar sesion</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="page-header card">
+        <div>
+          <p class="eyebrow">AGRICOLA JAPURIMA S.A.</p>
+          <h2>Parte Diario de Distribucion de Personal</h2>
+          <p class="muted">Sistema responsive para celular, tablet y PC.</p>
+        </div>
+        <div class="header-badges">
+          <span class="badge success">Fundo: Santa Teresa Bajo</span>
+          <span class="badge" id="connectionStatus">Modo local</span>
+        </div>
+      </header>
+
+      <section class="view active" id="view-dashboard">
+        <div class="cards-grid stats-grid">
+          <article class="card stat-card">
+            <span class="stat-label">Trabajadores activos</span>
+            <strong class="stat-value" id="statWorkers">0</strong>
+          </article>
+          <article class="card stat-card">
+            <span class="stat-label">Labores activas</span>
+            <strong class="stat-value" id="statLabors">0</strong>
+          </article>
+          <article class="card stat-card">
+            <span class="stat-label">Campos activos</span>
+            <strong class="stat-value" id="statFields">0</strong>
+          </article>
+          <article class="card stat-card">
+            <span class="stat-label">Partes registrados</span>
+            <strong class="stat-value" id="statParts">0</strong>
+          </article>
+        </div>
+
+        <div class="cards-grid two-columns">
+          <article class="card">
+            <div class="section-title-row">
+              <h3>Partes recientes</h3>
+              <button class="secondary-btn" id="goToPartes">Abrir modulo</button>
+            </div>
+            <div id="recentParts"></div>
+          </article>
+          <article class="card">
+            <h3>Uso recomendado</h3>
+            <ol class="steps-list">
+              <li>Registrar trabajadores, labores y campos.</li>
+              <li>Crear el parte del dia desde el modulo Parte diario.</li>
+              <li>Guardar, cerrar e imprimir o exportar a PDF.</li>
+            </ol>
+            <p class="muted">El sistema guarda los datos en los dispositivos conectados.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-partes">
+        <div class="card sticky-controls">
+          <div class="toolbar-grid">
+            <label>
+              <span>Fecha del parte</span>
+              <input type="date" id="partDate">
+            </label>
+            <label>
+              <span>Estado</span>
+              <input type="text" id="partStatus" readonly value="SIN ABRIR">
+            </label>
+            <label>
+              <span>Filas registradas</span>
+              <input type="text" id="partRowsCount" readonly value="0">
+            </label>
+          </div>
+          <div class="button-row wrap">
+            <button id="openPartBtn">Abrir o crear</button>
+            <button class="secondary-btn" id="savePartBtn">Guardar</button>
+            <button class="secondary-btn" id="copyPreviousBtn">Copiar dia anterior</button>
+            <button class="secondary-btn" id="addRowBtn">Agregar fila</button>
+            <button class="secondary-btn" id="closePartBtn">Cerrar parte</button>
+            <button class="secondary-btn" id="reopenPartBtn">Reabrir</button>
+            <button class="secondary-btn danger-outline" id="deletePartBtn">Eliminar parte</button>
+            <button class="secondary-btn" id="printPartBtn">Imprimir o PDF</button>
+            <button class="secondary-btn" id="exportPartBtn">Exportar CSV</button>
+          </div>
+          <p class="helper-text">Cabecera fija: AGRICOLA JAPURIMA S.A. / Fundo Santa Teresa Bajo - Huaura.</p>
+        </div>
+
+        <div class="card current-part-card">
+          <div class="section-title-row">
+            <h3>Detalle del personal</h3>
+            <div class="header-badges">
+              <span class="badge" id="currentPartDateLabel">Sin fecha</span>
+            </div>
+          </div>
+          <div id="partRows" class="rows-grid empty-state-host"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-trabajadores">
+        <div class="cards-grid two-columns">
+          <article class="card">
+            <h3 id="workerFormTitle">Nuevo trabajador</h3>
+            <form id="workerForm" class="stack-form">
+              <input type="hidden" id="workerId">
+              <label>
+                <span>Codigo</span>
+                <input type="text" id="workerCode" placeholder="Ej. T-001">
+              </label>
+              <label>
+                <span>DNI</span>
+                <input type="text" id="workerDni" placeholder="Opcional">
+              </label>
+              <label>
+                <span>Nombre completo</span>
+                <input type="text" id="workerName" required>
+              </label>
+              <label class="inline-toggle">
+                <input type="checkbox" id="workerActive" checked>
+                <span>Activo</span>
+              </label>
+              <div class="button-row">
+                <button type="submit">Guardar trabajador</button>
+                <button type="button" class="secondary-btn" id="cancelWorkerEdit">Cancelar</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="section-title-row">
+              <h3>Listado de trabajadores</h3>
+              <span class="badge" id="workerCountBadge">0</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Codigo</th>
+                    <th>DNI</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="workersTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-labores">
+        <div class="cards-grid two-columns narrow-form-layout">
+          <article class="card">
+            <h3 id="laborFormTitle">Nueva labor</h3>
+            <form id="laborForm" class="stack-form">
+              <input type="hidden" id="laborId">
+              <label>
+                <span>Nombre de la labor</span>
+                <input type="text" id="laborName" required>
+              </label>
+              <label class="inline-toggle">
+                <input type="checkbox" id="laborActive" checked>
+                <span>Activa</span>
+              </label>
+              <div class="button-row">
+                <button type="submit">Guardar labor</button>
+                <button type="button" class="secondary-btn" id="cancelLaborEdit">Cancelar</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="section-title-row">
+              <h3>Listado de labores</h3>
+              <span class="badge" id="laborCountBadge">0</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="laborsTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-campos">
+        <div class="cards-grid two-columns narrow-form-layout">
+          <article class="card">
+            <h3 id="fieldFormTitle">Nuevo campo</h3>
+            <form id="fieldForm" class="stack-form">
+              <input type="hidden" id="fieldId">
+              <label>
+                <span>Nombre del campo</span>
+                <input type="text" id="fieldName" required>
+              </label>
+              <label class="inline-toggle">
+                <input type="checkbox" id="fieldActive" checked>
+                <span>Activo</span>
+              </label>
+              <div class="button-row">
+                <button type="submit">Guardar campo</button>
+                <button type="button" class="secondary-btn" id="cancelFieldEdit">Cancelar</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <div class="section-title-row">
+              <h3>Listado de campos</h3>
+              <span class="badge" id="fieldCountBadge">0</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="fieldsTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="view" id="view-reportes">
+        <div class="card">
+          <h3>Filtros de reporte</h3>
+          <form id="reportFilters" class="toolbar-grid reports-grid">
+            <label>
+              <span>Desde</span>
+              <input type="date" id="reportFrom">
+            </label>
+            <label>
+              <span>Hasta</span>
+              <input type="date" id="reportTo">
+            </label>
+            <label>
+              <span>Trabajador</span>
+              <select id="reportWorker"></select>
+            </label>
+            <label>
+              <span>Labor</span>
+              <select id="reportLabor"></select>
+            </label>
+            <label>
+              <span>Campo</span>
+              <select id="reportField"></select>
+            </label>
+            <div class="button-row align-end">
+              <button type="submit">Buscar</button>
+              <button type="button" class="secondary-btn" id="exportReportBtn">Exportar CSV</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="section-title-row">
+            <h3>Resultados</h3>
+            <span class="badge" id="reportCountBadge">0 registros</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Fecha</th>
+                  <th>Trabajador</th>
+                  <th>Labor mañana</th>
+                  <th>Campo mañana</th>
+                  <th>Labor tarde</th>
+                  <th>Campo tarde</th>
+                  <th>Observaciones</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody id="reportsTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section class="view" id="view-ajustes">
+        <div class="cards-grid two-columns narrow-form-layout">
+          <article class="card">
+            <h3>Ajustes locales</h3>
+            <form id="settingsForm" class="stack-form">
+              <label>
+                <span>Responsable del registro</span>
+                <input type="text" id="settingsOwner" placeholder="Nombre del supervisor">
+              </label>
+              <label>
+                <span>Empresa</span>
+                <input type="text" value="AGRICOLA JAPURIMA S.A." readonly>
+              </label>
+              <label>
+                <span>Ubicacion fija</span>
+                <input type="text" value="Fundo Santa Teresa Bajo - Huaura" readonly>
+              </label>
+              <div class="button-row">
+                <button type="submit">Guardar ajustes</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <h3>Respaldo de datos</h3>
+            <p class="muted">Puedes exportar toda la base local a un archivo JSON o restaurarla desde un respaldo.</p>
+            <div class="button-row wrap">
+              <button id="exportBackupBtn">Exportar respaldo</button>
+              <label class="file-input-label secondary-btn">
+                Importar respaldo
+                <input type="file" id="importBackupInput" accept="application/json">
+              </label>
+              <button class="secondary-btn danger-outline" id="resetDataBtn">Borrar todos los datos</button>
+            </div>
+            <div class="spacer"></div>
+            <h4>Notas</h4>
+            <ul class="notes-list">
+              <li>Esta version guarda datos en el navegador del dispositivo.</li>
+              <li>Puede usarse en PC, tablet y celular.</li>
+              <li>Para uso multiusuario y sincronizado se recomienda desplegarla con base de datos en la nube.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="authOverlay" class="auth-overlay" aria-live="polite">
+    <div class="auth-card">
+      <img class="auth-logo" src="icons/logo.png" alt="Logo">
+      <h2>Iniciar sesión</h2>
+      <p class="muted">Ingresa usuario y contraseña para acceder al sistema.</p>
+      <form id="loginForm" class="stack-form">
+        <label>
+          <span>Usuario</span>
+          <input type="text" id="loginUsername" autocomplete="username" required>
+        </label>
+        <label>
+          <span>Contraseña</span>
+          <input type="password" id="loginPassword" autocomplete="current-password" required>
+        </label>
+        <button type="submit" id="loginSubmitBtn">Entrar</button>
+      </form>
+      <p class="helper-text" id="loginMessage"></p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
