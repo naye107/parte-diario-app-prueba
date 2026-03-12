@@ -491,9 +491,7 @@ body:not(.auth-locked) .auth-overlay {
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 20;
+    position: static;
     min-height: auto;
     border-radius: 0 0 18px 18px;
     padding: 0.6rem 0.75rem 0.7rem;
@@ -502,23 +500,27 @@ body:not(.auth-locked) .auth-overlay {
 
   .brand {
     width: 100%;
-    display: grid;
-    grid-template-columns: auto 1fr;
+    position: relative;
+    display: flex;
+    justify-content: center;
     align-items: center;
-    justify-items: start;
-    gap: 0.55rem;
-    text-align: left;
+    min-height: 52px;
+    text-align: center;
   }
 
   .brand-image {
     width: 108px;
     height: 42px;
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
   }
 
   .brand-text {
-    width: 100%;
+    width: auto;
     text-align: center;
-    padding-right: 1.2rem;
+    padding: 0 0.4rem;
   }
 
   .brand h1 {
