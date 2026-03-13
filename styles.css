@@ -94,6 +94,8 @@ label span {
   position: sticky;
   top: 0;
   min-height: 100vh;
+  height: 100vh;
+  overflow-y: auto;
 }
 
 .brand {
@@ -325,16 +327,43 @@ th {
 .sticky-controls {
   position: sticky;
   top: 1rem;
-  z-index: 3;
+  z-index: 12;
 }
 
 .current-part-card {
   min-height: 280px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
 }
 
 .rows-grid {
   display: grid;
   gap: 0.9rem;
+}
+
+#view-partes {
+  grid-template-rows: auto 1fr;
+  min-height: calc(100vh - 10.5rem);
+}
+
+#partRows {
+  max-height: calc(100vh - 24rem);
+  overflow-y: auto;
+  padding-right: 0.35rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(34, 84, 61, 0.45) transparent;
+}
+
+#partRows::-webkit-scrollbar {
+  width: 10px;
+}
+
+#partRows::-webkit-scrollbar-thumb {
+  background: rgba(34, 84, 61, 0.35);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
 }
 
 .part-row-card {
