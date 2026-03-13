@@ -818,8 +818,8 @@ function downloadCurrentPartPDF() {
     return;
   }
 
-  printable.style.width = '285mm';
-  printable.style.maxWidth = '285mm';
+  printable.style.width = '280mm';
+  printable.style.maxWidth = '280mm';
   printable.style.margin = '0 auto';
   document.body.appendChild(printable);
 
@@ -866,7 +866,7 @@ function buildPartPrintableBody(part) {
   `).join('');
 
   return `
-    <section style="font-family: Arial, sans-serif; color: #222; padding: 0; background: white; width: 285mm;">
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 0; background: white; width: 280mm;">
       <style>
         .part-doc { border: 1.5px solid #2c4737; padding: 8px; width: 100%; }
         .part-doc * { box-sizing: border-box; }
