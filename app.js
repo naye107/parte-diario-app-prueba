@@ -819,12 +819,12 @@ function downloadCurrentPartPDF() {
   }
 
   printable.style.width = '100%';
-  printable.style.maxWidth = '980px';
+  printable.style.maxWidth = '1120px';
   printable.style.margin = '0 auto';
   document.body.appendChild(printable);
 
   const options = {
-    margin: [4, 4, 4, 4],
+    margin: [2, 2, 2, 2],
     filename: `parte-${part.date}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
@@ -866,9 +866,9 @@ function buildPartPrintableBody(part) {
   `).join('');
 
   return `
-    <section style="font-family: Arial, sans-serif; color: #222; padding: 8px; background: white;">
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 2px; background: white;">
       <style>
-        .part-doc { border: 1.5px solid #2c4737; padding: 10px; width: 100%; }
+        .part-doc { border: 1.5px solid #2c4737; padding: 7px; width: 100%; }
         .part-doc * { box-sizing: border-box; }
         .part-doc h1, .part-doc h2, .part-doc h3, .part-doc p { margin: 0; }
         .part-doc .doc-header {
