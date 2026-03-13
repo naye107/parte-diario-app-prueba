@@ -61,6 +61,7 @@ const els = {
   reopenPartBtn: document.getElementById('reopenPartBtn'),
   deletePartBtn: document.getElementById('deletePartBtn'),
   printPartBtn: document.getElementById('printPartBtn'),
+  downloadPdfBtn: document.getElementById('downloadPdfBtn'),
   exportPartBtn: document.getElementById('exportPartBtn'),
 
   workerForm: document.getElementById('workerForm'),
@@ -150,6 +151,7 @@ function bindEvents() {
   els.reopenPartBtn.addEventListener('click', reopenCurrentPart);
   els.deletePartBtn.addEventListener('click', deleteCurrentPart);
   els.printPartBtn.addEventListener('click', printCurrentPart);
+  els.downloadPdfBtn.addEventListener('click', downloadCurrentPartPDF);
   els.exportPartBtn.addEventListener('click', exportCurrentPartCSV);
   els.partRows.addEventListener('change', onPartRowsChange);
   els.partRows.addEventListener('input', onPartRowsChange);
@@ -642,6 +644,7 @@ function togglePartControls(isClosed) {
   els.reopenPartBtn.disabled = !hasPart || !isClosed;
   els.deletePartBtn.disabled = !hasPart;
   els.printPartBtn.disabled = !hasPart;
+  els.downloadPdfBtn.disabled = !hasPart;
   els.exportPartBtn.disabled = !hasPart;
 }
 
@@ -805,8 +808,75 @@ function exportCurrentPartCSV() {
 function printCurrentPart() {
   const part = getCurrentPart();
   if (!part) return showToast('No hay un parte abierto.');
-  const rows = part.rows;
-  const printableRows = rows.map((row, index) => `
+  const popup = window.open('', '_blank');
+  if (!popup) return showToast('El navegador bloqueo la ventana de impresion.');
+
+  popup.document.write(buildPartPrintDocument(part, true));
+  popup.document.close();
+}
+
+function downloadCurrentPartPDF() {
+  const part = getCurrentPart();
+  if (!part) return showToast('No hay un parte abierto.');
+  if (typeof window.html2pdf !== 'function') {
+    showToast('No se pudo cargar el generador de PDF.');
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.innerHTML = buildPartPrintableBody(part);
+  const printable = container.firstElementChild;
+  if (!printable) {
+    showToast('No se pudo preparar el PDF.');
+    return;
+  }
+
+  printable.style.width = '100%';
+  printable.style.maxWidth = '980px';
+  printable.style.margin = '0 auto';
+  document.body.appendChild(printable);
+
+  const options = {
+    margin: [10, 8, 10, 8],
+    filename: `parte-${part.date}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
+
+  window.html2pdf()
+    .set(options)
+    .from(printable)
+    .save()
+    .then(() => {
+      showToast('PDF descargado correctamente.');
+    })
+    .catch(() => {
+      showToast('No se pudo generar el PDF.');
+    })
+    .finally(() => {
+      printable.remove();
+    });
+}
+
+function buildPartPrintDocument(part, autoPrint = false) {
+  return `
+    <!doctype html>
+    <html lang="es">
+    <head>
+      <meta charset="utf-8">
+      <title>Parte ${formatDate(part.date)}</title>
+    </head>
+    <body>
+      ${buildPartPrintableBody(part)}
+      ${autoPrint ? '<script>window.onload = () => window.print();</script>' : ''}
+    </body>
+    </html>
+  `;
+}
+
+function buildPartPrintableBody(part) {
+  const printableRows = part.rows.map((row, index) => `
     <tr>
       <td>${index + 1}</td>
       <td>${escapeHtml(getNameById(state.workers, row.workerId, 'name'))}</td>
@@ -818,55 +888,44 @@ function printCurrentPart() {
     </tr>
   `).join('');
 
-  const popup = window.open('', '_blank');
-  if (!popup) return showToast('El navegador bloqueo la ventana de impresion.');
-
-  popup.document.write(`
-    <!doctype html>
-    <html lang="es">
-    <head>
-      <meta charset="utf-8">
-      <title>Parte ${formatDate(part.date)}</title>
+  return `
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 24px; background: white;">
       <style>
-        body { font-family: Arial, sans-serif; padding: 24px; color: #222; }
-        h1, h2, p { margin: 0 0 8px; }
-        .meta { margin-bottom: 18px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #c8d3cb; padding: 8px; text-align: left; font-size: 12px; }
-        th { background: #eef5f0; }
-        .footer { margin-top: 14px; font-size: 12px; color: #555; }
+        .part-doc h1, .part-doc h2, .part-doc p { margin: 0 0 8px; }
+        .part-doc .meta { margin-bottom: 18px; }
+        .part-doc table { width: 100%; border-collapse: collapse; }
+        .part-doc th, .part-doc td { border: 1px solid #c8d3cb; padding: 8px; text-align: left; font-size: 12px; }
+        .part-doc th { background: #eef5f0; }
+        .part-doc .footer { margin-top: 14px; font-size: 12px; color: #555; }
       </style>
-    </head>
-    <body>
-      <h1>${escapeHtml(state.settings.company)}</h1>
-      <h2>Parte Diario de Distribucion de Personal</h2>
-      <div class="meta">
-        <p><strong>Ubicacion:</strong> ${escapeHtml(state.settings.location)}</p>
-        <p><strong>Fecha:</strong> ${formatDate(part.date)}</p>
-        <p><strong>Estado:</strong> ${escapeHtml(part.status)}</p>
+      <div class="part-doc">
+        <h1>${escapeHtml(state.settings.company)}</h1>
+        <h2>Parte Diario de Distribucion de Personal</h2>
+        <div class="meta">
+          <p><strong>Ubicacion:</strong> ${escapeHtml(state.settings.location)}</p>
+          <p><strong>Fecha:</strong> ${formatDate(part.date)}</p>
+          <p><strong>Estado:</strong> ${escapeHtml(part.status)}</p>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>N</th>
+              <th>Trabajador</th>
+              <th>Labores 5 horas</th>
+              <th>Campo</th>
+              <th>Labores 3 horas</th>
+              <th>Campo</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printableRows || '<tr><td colspan="7">Sin datos</td></tr>'}
+          </tbody>
+        </table>
+        <p class="footer">Generado por: ${escapeHtml(state.settings.owner || 'Supervisor')} - ${new Date().toLocaleString('es-PE')}</p>
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>N</th>
-            <th>Trabajador</th>
-            <th>Labores 5 horas</th>
-            <th>Campo</th>
-            <th>Labores 3 horas</th>
-            <th>Campo</th>
-            <th>Observaciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${printableRows || '<tr><td colspan="7">Sin datos</td></tr>'}
-        </tbody>
-      </table>
-      <p class="footer">Generado por: ${escapeHtml(state.settings.owner || 'Supervisor')} - ${new Date().toLocaleString('es-PE')}</p>
-      <script>window.onload = () => window.print();</script>
-    </body>
-    </html>
-  `);
-  popup.document.close();
+    </section>
+  `;
 }
 
 function renderWorkers() {
