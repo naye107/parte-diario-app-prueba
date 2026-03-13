@@ -34,6 +34,7 @@ let serverSyncPending = false;
 let serverSyncTimer = null;
 let networkListenersBound = false;
 let appInitialized = false;
+let currentDraftRow = null;
 
 const els = {
   menuToggleBtn: document.getElementById('menuToggleBtn'),
@@ -535,6 +536,7 @@ function openOrCreatePartForDate(dateValue, notify = true) {
     showToast(`Se abrio el parte del ${formatDate(dateValue)}.`);
   }
   currentPartId = part.id;
+  ensureDraftRow(part);
   renderCurrentPart();
   renderDashboard();
 }
@@ -554,71 +556,80 @@ function renderCurrentPart() {
     return;
   }
 
+  if (part.status !== 'CERRADO') ensureDraftRow(part);
   els.partDate.value = part.date;
   els.partStatus.value = part.status;
   els.partRowsCount.value = String(part.rows.length);
   els.currentPartDateLabel.textContent = formatDate(part.date);
   togglePartControls(part.status === 'CERRADO');
 
-  if (!part.rows.length) {
+  if (part.status === 'CERRADO') {
     els.partRows.innerHTML = `
       <div class="empty-state">
-        No hay filas registradas todavia. Usa <strong>Agregar fila</strong> para cargar personal.
+        El parte esta cerrado. Tiene <strong>${part.rows.length}</strong> registro(s) guardado(s).
       </div>
     `;
     return;
   }
 
-  els.partRows.innerHTML = part.rows.map((row, index) => `
-    <article class="part-row-card" data-row-id="${row.id}">
+  if (!currentDraftRow) {
+    els.partRows.innerHTML = `
+      <div class="empty-state">
+        Usa <strong>Registrar</strong> para preparar un nuevo registro.
+      </div>
+    `;
+    return;
+  }
+
+  els.partRows.innerHTML = `
+    <article class="part-row-card" data-row-id="${currentDraftRow.id}">
       <div class="part-row-top">
         <div>
-          <h4>Registro ${index + 1}</h4>
-          <p class="muted">Asigna trabajador, labores, campos y observaciones.</p>
+          <h4>Nuevo registro</h4>
+          <p class="muted">Completa los datos y pulsa Guardar para continuar con el siguiente.</p>
         </div>
         <div class="mini-actions">
-          <span class="status-pill ${part.status === 'CERRADO' ? 'closed' : 'draft'}">${part.status}</span>
-          <button class="secondary-btn mini-btn" data-action="remove-row">Eliminar</button>
+          <button class="mini-btn" data-action="save-draft">Guardar</button>
         </div>
       </div>
       <div class="row-fields-grid">
         <label>
           <span>Trabajador</span>
-          <select data-field="workerId" ${part.status === 'CERRADO' ? 'disabled' : ''}>
-            ${buildSelectOptions(state.workers, row.workerId, 'Seleccionar trabajador', 'name')}
+          <select data-field="workerId">
+            ${buildSelectOptions(state.workers, currentDraftRow.workerId, 'Seleccionar trabajador', 'name')}
           </select>
         </label>
         <label>
           <span>Labor manana</span>
-          <select data-field="morningLaborId" ${part.status === 'CERRADO' ? 'disabled' : ''}>
-            ${buildSelectOptions(state.labors, row.morningLaborId, 'Seleccionar labor', 'name')}
+          <select data-field="morningLaborId">
+            ${buildSelectOptions(state.labors, currentDraftRow.morningLaborId, 'Seleccionar labor', 'name')}
           </select>
         </label>
         <label>
           <span>Campo manana</span>
-          <select data-field="morningFieldId" ${part.status === 'CERRADO' ? 'disabled' : ''}>
-            ${buildSelectOptions(state.fields, row.morningFieldId, 'Seleccionar campo', 'name')}
+          <select data-field="morningFieldId">
+            ${buildSelectOptions(state.fields, currentDraftRow.morningFieldId, 'Seleccionar campo', 'name')}
           </select>
         </label>
         <label>
           <span>Labor tarde</span>
-          <select data-field="afternoonLaborId" ${part.status === 'CERRADO' ? 'disabled' : ''}>
-            ${buildSelectOptions(state.labors, row.afternoonLaborId, 'Seleccionar labor', 'name')}
+          <select data-field="afternoonLaborId">
+            ${buildSelectOptions(state.labors, currentDraftRow.afternoonLaborId, 'Seleccionar labor', 'name')}
           </select>
         </label>
         <label>
           <span>Campo tarde</span>
-          <select data-field="afternoonFieldId" ${part.status === 'CERRADO' ? 'disabled' : ''}>
-            ${buildSelectOptions(state.fields, row.afternoonFieldId, 'Seleccionar campo', 'name')}
+          <select data-field="afternoonFieldId">
+            ${buildSelectOptions(state.fields, currentDraftRow.afternoonFieldId, 'Seleccionar campo', 'name')}
           </select>
         </label>
         <label class="full">
           <span>Observaciones</span>
-          <textarea data-field="notes" ${part.status === 'CERRADO' ? 'disabled' : ''} placeholder="Opcional">${escapeHtml(row.notes)}</textarea>
+          <textarea data-field="notes" placeholder="Opcional">${escapeHtml(currentDraftRow.notes)}</textarea>
         </label>
       </div>
     </article>
-  `).join('');
+  `;
 }
 
 function buildSelectOptions(items, selectedId, placeholder, labelKey) {
@@ -671,61 +682,37 @@ function addPartRow() {
     showToast('El parte esta cerrado y no acepta cambios.');
     return;
   }
-  part.rows.push({
-    id: uid(),
-    workerId: '',
-    morningLaborId: '',
-    morningFieldId: '',
-    afternoonLaborId: '',
-    afternoonFieldId: '',
-    notes: ''
-  });
-  part.updatedAt = new Date().toISOString();
-  refreshAll();
-  showToast('Se agrego una fila al parte.');
+  ensureDraftRow(part, true);
+  renderCurrentPart();
+  showToast('Registro listo para completar.');
 }
 
 function onPartRowsChange(event) {
   const field = event.target.dataset.field;
   if (!field) return;
-  const rowCard = event.target.closest('[data-row-id]');
-  const rowId = rowCard?.dataset.rowId;
   const part = getCurrentPart();
-  if (!part || !rowId || part.status === 'CERRADO') return;
-  const row = part.rows.find(item => item.id === rowId);
-  if (!row) return;
+  if (!part || part.status === 'CERRADO' || !currentDraftRow) return;
 
   const nextValue = event.target.value;
   if (field === 'workerId' && nextValue) {
-    const duplicated = part.rows.some(item => item.id !== rowId && item.workerId === nextValue);
+    const duplicated = part.rows.some(item => item.workerId === nextValue);
     if (duplicated) {
-      event.target.value = row.workerId || '';
+      event.target.value = currentDraftRow.workerId || '';
       showToast('Ese trabajador ya fue registrado en este parte.');
       return;
     }
   }
 
-  row[field] = nextValue;
-  part.updatedAt = new Date().toISOString();
-  saveState();
-  if (field === 'workerId') renderCurrentPart();
+  currentDraftRow[field] = nextValue;
 }
 
 function onPartRowsClick(event) {
   const button = event.target.closest('[data-action]');
   if (!button) return;
   const action = button.dataset.action;
-  const rowCard = button.closest('[data-row-id]');
-  const rowId = rowCard?.dataset.rowId;
   const part = getCurrentPart();
-  if (!part || !rowId || part.status === 'CERRADO') return;
-
-  if (action === 'remove-row') {
-    part.rows = part.rows.filter(item => item.id !== rowId);
-    part.updatedAt = new Date().toISOString();
-    refreshAll();
-    showToast('Se elimino la fila.');
-  }
+  if (!part || part.status === 'CERRADO') return;
+  if (action === 'save-draft') saveDraftRow();
 }
 
 function saveCurrentPart() {
@@ -773,9 +760,47 @@ function copyPreviousPart() {
   if (!previous) return showToast('No existe un parte anterior para copiar.');
   if (part.rows.length && !window.confirm('Este parte ya tiene filas. Se reemplazaran por el contenido del dia anterior.')) return;
   part.rows = previous.rows.map(row => ({ ...row, id: uid() }));
+  currentDraftRow = createEmptyPartRow();
   part.updatedAt = new Date().toISOString();
   refreshAll();
   showToast(`Se copio el contenido del ${formatDate(previous.date)}.`);
+}
+
+function createEmptyPartRow() {
+  return {
+    id: uid(),
+    workerId: '',
+    morningLaborId: '',
+    morningFieldId: '',
+    afternoonLaborId: '',
+    afternoonFieldId: '',
+    notes: ''
+  };
+}
+
+function ensureDraftRow(part, forceNew = false) {
+  if (!part || part.status === 'CERRADO') {
+    currentDraftRow = null;
+    return;
+  }
+  if (forceNew || !currentDraftRow) {
+    currentDraftRow = createEmptyPartRow();
+  }
+}
+
+function saveDraftRow() {
+  const part = getCurrentPart();
+  if (!part || part.status === 'CERRADO' || !currentDraftRow) return;
+  if (!currentDraftRow.workerId) {
+    showToast('Selecciona un trabajador para guardar el registro.');
+    return;
+  }
+
+  part.rows.push({ ...currentDraftRow });
+  part.updatedAt = new Date().toISOString();
+  currentDraftRow = createEmptyPartRow();
+  refreshAll();
+  showToast('Registro guardado. Puedes continuar con el siguiente.');
 }
 
 function currentPartRowsFlat() {
@@ -1380,6 +1405,7 @@ function importBackup(event) {
       const parsed = JSON.parse(reader.result);
       state = normalizeState(parsed);
       currentPartId = null;
+      currentDraftRow = null;
       els.settingsOwner.value = state.settings.owner || '';
       refreshAll();
       if (state.parts.length) {
@@ -1401,6 +1427,7 @@ function resetAllData() {
   if (!window.confirm('Se eliminaran todos los datos locales de este dispositivo.')) return;
   state = structuredClone(initialState);
   currentPartId = null;
+  currentDraftRow = null;
   els.settingsOwner.value = state.settings.owner || '';
   resetWorkerForm();
   resetLaborForm();
