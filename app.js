@@ -1128,7 +1128,6 @@ function renderLabors() {
       <div class="worker-item-top">
         <div>
           <h4>${escapeHtml(item.name)}</h4>
-          <p class="muted">Labor registrada en el sistema</p>
         </div>
         <span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activa' : 'Inactiva'}</span>
       </div>
@@ -1206,7 +1205,6 @@ function renderFields() {
       <div class="worker-item-top">
         <div>
           <h4>${escapeHtml(item.name)}</h4>
-          <p class="muted">Campo disponible para asignacion</p>
         </div>
         <span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activo' : 'Inactivo'}</span>
       </div>
