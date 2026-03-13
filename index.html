@@ -131,10 +131,10 @@
       </section>
 
       <section class="view" id="view-trabajadores">
-        <div class="cards-grid two-columns">
+        <div class="cards-grid worker-layout">
           <article class="card">
             <h3 id="workerFormTitle">Nuevo trabajador</h3>
-            <form id="workerForm" class="stack-form">
+            <form id="workerForm" class="stack-form worker-form-grid">
               <input type="hidden" id="workerId">
               <label>
                 <span>Codigo</span>
@@ -144,7 +144,7 @@
                 <span>DNI</span>
                 <input type="text" id="workerDni" placeholder="Opcional">
               </label>
-              <label>
+              <label class="full">
                 <span>Nombre completo</span>
                 <input type="text" id="workerName" required>
               </label>
@@ -164,20 +164,7 @@
               <h3>Listado de trabajadores</h3>
               <span class="badge" id="workerCountBadge">0</span>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Codigo</th>
-                    <th>DNI</th>
-                    <th>Nombre</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="workersTableBody"></tbody>
-              </table>
-            </div>
+            <div id="workersTableBody" class="worker-list"></div>
           </article>
         </div>
       </section>
@@ -208,18 +195,7 @@
               <h3>Listado de labores</h3>
               <span class="badge" id="laborCountBadge">0</span>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="laborsTableBody"></tbody>
-              </table>
-            </div>
+            <div id="laborsTableBody" class="worker-list"></div>
           </article>
         </div>
       </section>
@@ -250,18 +226,7 @@
               <h3>Listado de campos</h3>
               <span class="badge" id="fieldCountBadge">0</span>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="fieldsTableBody"></tbody>
-              </table>
-            </div>
+            <div id="fieldsTableBody" class="worker-list"></div>
           </article>
         </div>
       </section>

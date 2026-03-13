@@ -1036,23 +1036,24 @@ function renderWorkers() {
   const items = [...state.workers].sort((a, b) => a.name.localeCompare(b.name));
   els.workerCountBadge.textContent = `${items.length}`;
   if (!items.length) {
-    els.workersTableBody.innerHTML = '<tr><td colspan="5">No hay trabajadores registrados.</td></tr>';
+    els.workersTableBody.innerHTML = '<div class="empty-state">No hay trabajadores registrados.</div>';
     return;
   }
   els.workersTableBody.innerHTML = items.map(item => `
-    <tr>
-      <td>${escapeHtml(item.code || '-')}</td>
-      <td>${escapeHtml(item.dni || '-')}</td>
-      <td>${escapeHtml(item.name)}</td>
-      <td><span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activo' : 'Inactivo'}</span></td>
-      <td>
-        <div class="mini-actions">
-          <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
-          <button class="secondary-btn mini-btn" data-action="toggle" data-id="${item.id}">${item.active ? 'Inactivar' : 'Activar'}</button>
-          <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+    <article class="worker-item-card">
+      <div class="worker-item-top">
+        <div>
+          <h4>${escapeHtml(item.name)}</h4>
+          <p class="muted">${escapeHtml(item.code || 'Sin codigo')} · DNI: ${escapeHtml(item.dni || '-')}</p>
         </div>
-      </td>
-    </tr>
+        <span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activo' : 'Inactivo'}</span>
+      </div>
+      <div class="mini-actions">
+        <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
+        <button class="secondary-btn mini-btn" data-action="toggle" data-id="${item.id}">${item.active ? 'Inactivar' : 'Activar'}</button>
+        <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+      </div>
+    </article>
   `).join('');
 }
 
@@ -1119,21 +1120,24 @@ function renderLabors() {
   const items = [...state.labors].sort((a, b) => a.name.localeCompare(b.name));
   els.laborCountBadge.textContent = `${items.length}`;
   if (!items.length) {
-    els.laborsTableBody.innerHTML = '<tr><td colspan="3">No hay labores registradas.</td></tr>';
+    els.laborsTableBody.innerHTML = '<div class="empty-state">No hay labores registradas.</div>';
     return;
   }
   els.laborsTableBody.innerHTML = items.map(item => `
-    <tr>
-      <td>${escapeHtml(item.name)}</td>
-      <td><span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activa' : 'Inactiva'}</span></td>
-      <td>
-        <div class="mini-actions">
-          <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
-          <button class="secondary-btn mini-btn" data-action="toggle" data-id="${item.id}">${item.active ? 'Inactivar' : 'Activar'}</button>
-          <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+    <article class="worker-item-card">
+      <div class="worker-item-top">
+        <div>
+          <h4>${escapeHtml(item.name)}</h4>
+          <p class="muted">Labor registrada en el sistema</p>
         </div>
-      </td>
-    </tr>
+        <span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activa' : 'Inactiva'}</span>
+      </div>
+      <div class="mini-actions">
+        <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
+        <button class="secondary-btn mini-btn" data-action="toggle" data-id="${item.id}">${item.active ? 'Inactivar' : 'Activar'}</button>
+        <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+      </div>
+    </article>
   `).join('');
 }
 
@@ -1194,21 +1198,24 @@ function renderFields() {
   const items = [...state.fields].sort((a, b) => a.name.localeCompare(b.name));
   els.fieldCountBadge.textContent = `${items.length}`;
   if (!items.length) {
-    els.fieldsTableBody.innerHTML = '<tr><td colspan="3">No hay campos registrados.</td></tr>';
+    els.fieldsTableBody.innerHTML = '<div class="empty-state">No hay campos registrados.</div>';
     return;
   }
   els.fieldsTableBody.innerHTML = items.map(item => `
-    <tr>
-      <td>${escapeHtml(item.name)}</td>
-      <td><span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activo' : 'Inactivo'}</span></td>
-      <td>
-        <div class="mini-actions">
-          <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
-          <button class="secondary-btn mini-btn" data-action="toggle" data-id="${item.id}">${item.active ? 'Inactivar' : 'Activar'}</button>
-          <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+    <article class="worker-item-card">
+      <div class="worker-item-top">
+        <div>
+          <h4>${escapeHtml(item.name)}</h4>
+          <p class="muted">Campo disponible para asignacion</p>
         </div>
-      </td>
-    </tr>
+        <span class="status-pill ${item.active ? 'active' : 'inactive'}">${item.active ? 'Activo' : 'Inactivo'}</span>
+      </div>
+      <div class="mini-actions">
+        <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
+        <button class="secondary-btn mini-btn" data-action="toggle" data-id="${item.id}">${item.active ? 'Inactivar' : 'Activar'}</button>
+        <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+      </div>
+    </article>
   `).join('');
 }
 
