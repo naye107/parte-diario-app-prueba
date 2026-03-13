@@ -229,8 +229,16 @@ label span {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.dashboard-stats-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .two-columns {
   grid-template-columns: 1.1fr 1.4fr;
+}
+
+.dashboard-layout {
+  grid-template-columns: 1fr;
 }
 
 .worker-layout {
@@ -518,6 +526,7 @@ body:not(.auth-locked) .auth-overlay {
 
 @media (max-width: 1100px) {
   .stats-grid,
+  .dashboard-stats-grid,
   .two-columns,
   .narrow-form-layout,
   .reports-grid,
@@ -658,6 +667,7 @@ body:not(.auth-locked) .auth-overlay {
 
 @media (max-width: 640px) {
   .stats-grid,
+  .dashboard-stats-grid,
   .two-columns,
   .worker-form-grid,
   .narrow-form-layout,

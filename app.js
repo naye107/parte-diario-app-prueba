@@ -480,7 +480,7 @@ function renderDashboard() {
   els.statFields.textContent = state.fields.filter(item => item.active).length;
   els.statParts.textContent = state.parts.length;
 
-  const recentParts = [...state.parts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+  const recentParts = [...state.parts].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 3);
   if (!recentParts.length) {
     els.recentParts.innerHTML = `<div class="empty-state">Todavia no hay partes registrados.</div>`;
     return;
