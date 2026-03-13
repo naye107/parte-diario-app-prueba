@@ -35,6 +35,7 @@ let serverSyncTimer = null;
 let networkListenersBound = false;
 let appInitialized = false;
 let currentDraftRow = null;
+let showSavedPartRows = false;
 
 const els = {
   menuToggleBtn: document.getElementById('menuToggleBtn'),
@@ -536,6 +537,7 @@ function openOrCreatePartForDate(dateValue, notify = true) {
     showToast(`Se abrio el parte del ${formatDate(dateValue)}.`);
   }
   currentPartId = part.id;
+  showSavedPartRows = true;
   ensureDraftRow(part);
   renderCurrentPart();
   renderDashboard();
@@ -556,19 +558,15 @@ function renderCurrentPart() {
     return;
   }
 
-  if (part.status !== 'CERRADO') ensureDraftRow(part);
+  if (part.status !== 'CERRADO' && !showSavedPartRows) ensureDraftRow(part);
   els.partDate.value = part.date;
   els.partStatus.value = part.status;
   els.partRowsCount.value = String(part.rows.length);
   els.currentPartDateLabel.textContent = formatDate(part.date);
   togglePartControls(part.status === 'CERRADO');
 
-  if (part.status === 'CERRADO') {
-    els.partRows.innerHTML = `
-      <div class="empty-state">
-        El parte esta cerrado. Tiene <strong>${part.rows.length}</strong> registro(s) guardado(s).
-      </div>
-    `;
+  if (part.status === 'CERRADO' || showSavedPartRows) {
+    renderSavedPartRows(part);
     return;
   }
 
@@ -632,6 +630,54 @@ function renderCurrentPart() {
   `;
 }
 
+function renderSavedPartRows(part) {
+  if (!part.rows.length) {
+    els.partRows.innerHTML = `
+      <div class="empty-state">
+        Todavia no hay registros guardados en este parte.
+      </div>
+    `;
+    return;
+  }
+
+  els.partRows.innerHTML = part.rows.map((row, index) => `
+    <article class="part-row-card">
+      <div class="part-row-top">
+        <div>
+          <h4>Registro ${index + 1}</h4>
+          <p class="muted">${escapeHtml(getNameById(state.workers, row.workerId, 'name') || 'Sin trabajador')}</p>
+        </div>
+      </div>
+      <div class="row-fields-grid">
+        <label>
+          <span>Trabajador</span>
+          <input type="text" value="${escapeHtml(getNameById(state.workers, row.workerId, 'name'))}" readonly>
+        </label>
+        <label>
+          <span>Labor manana</span>
+          <input type="text" value="${escapeHtml(getNameById(state.labors, row.morningLaborId, 'name'))}" readonly>
+        </label>
+        <label>
+          <span>Campo manana</span>
+          <input type="text" value="${escapeHtml(getNameById(state.fields, row.morningFieldId, 'name'))}" readonly>
+        </label>
+        <label>
+          <span>Labor tarde</span>
+          <input type="text" value="${escapeHtml(getNameById(state.labors, row.afternoonLaborId, 'name'))}" readonly>
+        </label>
+        <label>
+          <span>Campo tarde</span>
+          <input type="text" value="${escapeHtml(getNameById(state.fields, row.afternoonFieldId, 'name'))}" readonly>
+        </label>
+        <label class="full">
+          <span>Observaciones</span>
+          <textarea readonly>${escapeHtml(row.notes)}</textarea>
+        </label>
+      </div>
+    </article>
+  `).join('');
+}
+
 function buildSelectOptions(items, selectedId, placeholder, labelKey) {
   const selectedItem = items.find(item => item.id === selectedId);
   const orderedItems = [...items].sort((a, b) => (a[labelKey] || '').localeCompare(b[labelKey] || ''));
@@ -682,6 +728,7 @@ function addPartRow() {
     showToast('El parte esta cerrado y no acepta cambios.');
     return;
   }
+  showSavedPartRows = false;
   ensureDraftRow(part, true);
   renderCurrentPart();
   showToast('Registro listo para completar.');
@@ -737,6 +784,8 @@ function closeCurrentPart() {
   const hasRowsWithoutWorker = part.rows.some(row => !row.workerId);
   if (hasRowsWithoutWorker) return showToast('Todas las filas deben tener trabajador antes de cerrar.');
   part.status = 'CERRADO';
+  currentDraftRow = null;
+  showSavedPartRows = true;
   part.updatedAt = new Date().toISOString();
   refreshAll();
   showToast('Parte cerrado. Solo queda disponible para consulta, impresion y exportacion.');
@@ -746,6 +795,7 @@ function reopenCurrentPart() {
   const part = getCurrentPart();
   if (!part) return showToast('No hay un parte abierto.');
   part.status = 'BORRADOR';
+  showSavedPartRows = true;
   part.updatedAt = new Date().toISOString();
   refreshAll();
   showToast('Parte reabierto.');
@@ -761,6 +811,7 @@ function copyPreviousPart() {
   if (part.rows.length && !window.confirm('Este parte ya tiene filas. Se reemplazaran por el contenido del dia anterior.')) return;
   part.rows = previous.rows.map(row => ({ ...row, id: uid() }));
   currentDraftRow = createEmptyPartRow();
+  showSavedPartRows = true;
   part.updatedAt = new Date().toISOString();
   refreshAll();
   showToast(`Se copio el contenido del ${formatDate(previous.date)}.`);
@@ -799,6 +850,7 @@ function saveDraftRow() {
   part.rows.push({ ...currentDraftRow });
   part.updatedAt = new Date().toISOString();
   currentDraftRow = createEmptyPartRow();
+  showSavedPartRows = false;
   refreshAll();
   showToast('Registro guardado. Puedes continuar con el siguiente.');
 }
@@ -1406,6 +1458,7 @@ function importBackup(event) {
       state = normalizeState(parsed);
       currentPartId = null;
       currentDraftRow = null;
+      showSavedPartRows = false;
       els.settingsOwner.value = state.settings.owner || '';
       refreshAll();
       if (state.parts.length) {
@@ -1428,6 +1481,7 @@ function resetAllData() {
   state = structuredClone(initialState);
   currentPartId = null;
   currentDraftRow = null;
+  showSavedPartRows = false;
   els.settingsOwner.value = state.settings.owner || '';
   resetWorkerForm();
   resetLaborForm();
