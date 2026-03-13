@@ -957,7 +957,7 @@ function buildPartPrintableBody(part) {
         .part-doc th {
           background: #e7efe9;
           color: #22372b;
-          font-size: 9px;
+          font-size: 11px;
           letter-spacing: 0.03em;
         }
         .part-doc .center {
