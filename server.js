@@ -11,6 +11,8 @@ const AUTH_USER = process.env.AUTH_USER || 'admin';
 const AUTH_PASS = process.env.AUTH_PASS || '123456';
 const SESSION_COOKIE = 'pd_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 horas
+const HEADER_COMPANY = 'AGRICOLA JAPURIMA S.A.';
+const HEADER_LOCATION = 'Fundo Santa Teresa Bajo - Huaura';
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
@@ -33,8 +35,8 @@ db.exec(`
 const DEFAULT_STATE = {
   settings: {
     owner: 'Supervisor',
-    company: 'AGRICOLA JAPURIMA S.A.',
-    location: 'Fundo Santa Teresa Bajo - Huaura'
+    company: HEADER_COMPANY,
+    location: HEADER_LOCATION
   },
   workers: [],
   labors: [
@@ -66,6 +68,8 @@ function uid() {
 function normalizeState(input) {
   const merged = structuredClone(DEFAULT_STATE);
   merged.settings = { ...merged.settings, ...(input?.settings || {}) };
+  merged.settings.company = HEADER_COMPANY;
+  merged.settings.location = HEADER_LOCATION;
   merged.workers = Array.isArray(input?.workers) ? input.workers : [];
   merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors : merged.labors;
   merged.fields = Array.isArray(input?.fields) && input.fields.length ? input.fields : merged.fields;

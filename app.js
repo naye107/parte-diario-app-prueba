@@ -1,11 +1,13 @@
 const STORAGE_KEY = 'parte-diario-santa-teresa-v1';
 const SERVER_SYNC_DEBOUNCE_MS = 700;
+const HEADER_COMPANY = 'AGRICOLA JAPURIMA S.A.';
+const HEADER_LOCATION = 'Fundo Santa Teresa Bajo - Huaura';
 
 const initialState = {
   settings: {
     owner: 'Supervisor',
-    company: 'AGRICOLA JAPURIMA S.A.',
-    location: 'Fundo Santa Teresa Bajo - Huaura'
+    company: HEADER_COMPANY,
+    location: HEADER_LOCATION
   },
   workers: [],
   labors: [
@@ -307,6 +309,8 @@ function loadState() {
 function normalizeState(input) {
   const merged = structuredClone(initialState);
   merged.settings = { ...merged.settings, ...(input?.settings || {}) };
+  merged.settings.company = HEADER_COMPANY;
+  merged.settings.location = HEADER_LOCATION;
   merged.workers = Array.isArray(input?.workers) ? input.workers : [];
   merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors : merged.labors;
   merged.fields = Array.isArray(input?.fields) && input.fields.length ? input.fields : merged.fields;
