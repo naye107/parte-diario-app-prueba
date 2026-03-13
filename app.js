@@ -876,53 +876,183 @@ function buildPartPrintDocument(part, autoPrint = false) {
 }
 
 function buildPartPrintableBody(part) {
+  const basePath = window.location.pathname.endsWith('/')
+    ? window.location.pathname
+    : window.location.pathname.replace(/\/[^/]*$/, '/');
+  const logoUrl = `${window.location.origin}${basePath}icons/logo.png?v=20260312`;
+  const generatedAt = new Date().toLocaleString('es-PE');
+  const totalWorkers = part.rows.length;
   const printableRows = part.rows.map((row, index) => `
     <tr>
-      <td>${index + 1}</td>
+      <td class="center">${index + 1}</td>
       <td>${escapeHtml(getNameById(state.workers, row.workerId, 'name'))}</td>
       <td>${escapeHtml(getNameById(state.labors, row.morningLaborId, 'name'))}</td>
       <td>${escapeHtml(getNameById(state.fields, row.morningFieldId, 'name'))}</td>
       <td>${escapeHtml(getNameById(state.labors, row.afternoonLaborId, 'name'))}</td>
       <td>${escapeHtml(getNameById(state.fields, row.afternoonFieldId, 'name'))}</td>
-      <td>${escapeHtml(row.notes || '')}</td>
+      <td>${escapeHtml(row.notes || '-')}</td>
     </tr>
   `).join('');
 
   return `
-    <section style="font-family: Arial, sans-serif; color: #222; padding: 24px; background: white;">
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 18px; background: white;">
       <style>
-        .part-doc h1, .part-doc h2, .part-doc p { margin: 0 0 8px; }
-        .part-doc .meta { margin-bottom: 18px; }
-        .part-doc table { width: 100%; border-collapse: collapse; }
-        .part-doc th, .part-doc td { border: 1px solid #c8d3cb; padding: 8px; text-align: left; font-size: 12px; }
-        .part-doc th { background: #eef5f0; }
-        .part-doc .footer { margin-top: 14px; font-size: 12px; color: #555; }
+        .part-doc { border: 1.5px solid #2c4737; padding: 14px; }
+        .part-doc * { box-sizing: border-box; }
+        .part-doc h1, .part-doc h2, .part-doc h3, .part-doc p { margin: 0; }
+        .part-doc .doc-header {
+          display: grid;
+          grid-template-columns: 155px 1fr 165px;
+          align-items: center;
+          gap: 12px;
+          border-bottom: 2px solid #2c4737;
+          padding-bottom: 10px;
+          margin-bottom: 10px;
+        }
+        .part-doc .logo-wrap {
+          height: 56px;
+          display: flex;
+          align-items: center;
+        }
+        .part-doc .logo-wrap img {
+          max-width: 145px;
+          max-height: 52px;
+          object-fit: contain;
+        }
+        .part-doc .doc-title {
+          text-align: center;
+        }
+        .part-doc .doc-title h1 {
+          font-size: 19px;
+          letter-spacing: 0.04em;
+          font-weight: 800;
+        }
+        .part-doc .doc-title h2 {
+          font-size: 11px;
+          margin-top: 3px;
+          font-weight: 700;
+        }
+        .part-doc .doc-code {
+          border: 1px solid #2c4737;
+          padding: 8px 10px;
+          font-size: 10px;
+          line-height: 1.45;
+        }
+        .part-doc .meta-grid {
+          display: grid;
+          grid-template-columns: 1.6fr 0.8fr 0.8fr 0.8fr;
+          gap: 0;
+          border: 1px solid #2c4737;
+          margin-bottom: 10px;
+        }
+        .part-doc .meta-cell {
+          border-right: 1px solid #2c4737;
+          min-height: 52px;
+          padding: 7px 8px;
+        }
+        .part-doc .meta-cell:last-child {
+          border-right: none;
+        }
+        .part-doc .meta-label {
+          display: block;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #516459;
+          margin-bottom: 4px;
+          letter-spacing: 0.04em;
+        }
+        .part-doc .meta-value {
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .part-doc table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        .part-doc th, .part-doc td {
+          border: 1px solid #98a99e;
+          padding: 6px 6px;
+          text-align: left;
+          font-size: 10px;
+          vertical-align: top;
+          word-break: break-word;
+        }
+        .part-doc th {
+          background: #e7efe9;
+          color: #22372b;
+          text-transform: uppercase;
+          font-size: 9px;
+          letter-spacing: 0.03em;
+        }
+        .part-doc .center {
+          text-align: center;
+        }
+        .part-doc .summary-row td {
+          font-weight: 700;
+          background: #f6faf7;
+        }
+        .part-doc .footer {
+          margin-top: 14px;
+          font-size: 10px;
+          color: #555;
+          text-align: right;
+        }
       </style>
       <div class="part-doc">
-        <h1>${escapeHtml(state.settings.company)}</h1>
-        <h2>Parte Diario de Distribucion de Personal</h2>
-        <div class="meta">
-          <p><strong>Ubicacion:</strong> ${escapeHtml(state.settings.location)}</p>
-          <p><strong>Fecha:</strong> ${formatDate(part.date)}</p>
-          <p><strong>Estado:</strong> ${escapeHtml(part.status)}</p>
+        <div class="doc-header">
+          <div class="logo-wrap">
+            <img src="${escapeHtml(logoUrl)}" alt="Logo empresa">
+          </div>
+          <div class="doc-title">
+            <h1>${escapeHtml(state.settings.company)}</h1>
+            <h2>PARTE DIARIO DE DISTRIBUCION DE PERSONAL</h2>
+          </div>
+          <div class="doc-code">
+            <div><strong>Formato:</strong> Control diario</div>
+            <div><strong>Version:</strong> 1.0</div>
+            <div><strong>Area:</strong> Campo</div>
+          </div>
+        </div>
+        <div class="meta-grid">
+          <div class="meta-cell">
+            <span class="meta-label">Fundo / ubicacion</span>
+            <div class="meta-value">${escapeHtml(state.settings.location)}</div>
+          </div>
+          <div class="meta-cell">
+            <span class="meta-label">Fecha</span>
+            <div class="meta-value">${formatDate(part.date)}</div>
+          </div>
+          <div class="meta-cell">
+            <span class="meta-label">Estado</span>
+            <div class="meta-value">${escapeHtml(part.status)}</div>
+          </div>
+          <div class="meta-cell">
+            <span class="meta-label">Total personal</span>
+            <div class="meta-value">${totalWorkers}</div>
+          </div>
         </div>
         <table>
           <thead>
             <tr>
-              <th>N</th>
-              <th>Trabajador</th>
-              <th>Labores 5 horas</th>
-              <th>Campo</th>
-              <th>Labores 3 horas</th>
-              <th>Campo</th>
-              <th>Observaciones</th>
+              <th style="width: 4%;">N</th>
+              <th style="width: 28%;">Trabajador</th>
+              <th style="width: 15%;">Labor manana</th>
+              <th style="width: 11%;">Campo manana</th>
+              <th style="width: 15%;">Labor tarde</th>
+              <th style="width: 11%;">Campo tarde</th>
+              <th style="width: 16%;">Observaciones</th>
             </tr>
           </thead>
           <tbody>
             ${printableRows || '<tr><td colspan="7">Sin datos</td></tr>'}
+            <tr class="summary-row">
+              <td colspan="7">Total de personal registrado: ${totalWorkers}</td>
+            </tr>
           </tbody>
         </table>
-        <p class="footer">Generado por: ${escapeHtml(state.settings.owner || 'Supervisor')} - ${new Date().toLocaleString('es-PE')}</p>
+        <p class="footer">Generado el ${generatedAt}</p>
       </div>
     </section>
   `;
