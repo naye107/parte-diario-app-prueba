@@ -60,7 +60,6 @@ const els = {
   closePartBtn: document.getElementById('closePartBtn'),
   reopenPartBtn: document.getElementById('reopenPartBtn'),
   deletePartBtn: document.getElementById('deletePartBtn'),
-  printPartBtn: document.getElementById('printPartBtn'),
   downloadPdfBtn: document.getElementById('downloadPdfBtn'),
   exportPartBtn: document.getElementById('exportPartBtn'),
 
@@ -150,7 +149,6 @@ function bindEvents() {
   els.closePartBtn.addEventListener('click', closeCurrentPart);
   els.reopenPartBtn.addEventListener('click', reopenCurrentPart);
   els.deletePartBtn.addEventListener('click', deleteCurrentPart);
-  els.printPartBtn.addEventListener('click', printCurrentPart);
   els.downloadPdfBtn.addEventListener('click', downloadCurrentPartPDF);
   els.exportPartBtn.addEventListener('click', exportCurrentPartCSV);
   els.partRows.addEventListener('change', onPartRowsChange);
@@ -643,7 +641,6 @@ function togglePartControls(isClosed) {
   els.closePartBtn.disabled = !hasPart || isClosed;
   els.reopenPartBtn.disabled = !hasPart || !isClosed;
   els.deletePartBtn.disabled = !hasPart;
-  els.printPartBtn.disabled = !hasPart;
   els.downloadPdfBtn.disabled = !hasPart;
   els.exportPartBtn.disabled = !hasPart;
 }
@@ -805,16 +802,6 @@ function exportCurrentPartCSV() {
   showToast('Se exporto el parte en CSV.');
 }
 
-function printCurrentPart() {
-  const part = getCurrentPart();
-  if (!part) return showToast('No hay un parte abierto.');
-  const popup = window.open('', '_blank');
-  if (!popup) return showToast('El navegador bloqueo la ventana de impresion.');
-
-  popup.document.write(buildPartPrintDocument(part, true));
-  popup.document.close();
-}
-
 function downloadCurrentPartPDF() {
   const part = getCurrentPart();
   if (!part) return showToast('No hay un parte abierto.');
@@ -837,7 +824,7 @@ function downloadCurrentPartPDF() {
   document.body.appendChild(printable);
 
   const options = {
-    margin: [10, 8, 10, 8],
+    margin: [4, 4, 4, 4],
     filename: `parte-${part.date}.pdf`,
     image: { type: 'jpeg', quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
@@ -857,22 +844,6 @@ function downloadCurrentPartPDF() {
     .finally(() => {
       printable.remove();
     });
-}
-
-function buildPartPrintDocument(part, autoPrint = false) {
-  return `
-    <!doctype html>
-    <html lang="es">
-    <head>
-      <meta charset="utf-8">
-      <title>Parte ${formatDate(part.date)}</title>
-    </head>
-    <body>
-      ${buildPartPrintableBody(part)}
-      ${autoPrint ? '<script>window.onload = () => window.print();</script>' : ''}
-    </body>
-    </html>
-  `;
 }
 
 function buildPartPrintableBody(part) {
@@ -895,9 +866,9 @@ function buildPartPrintableBody(part) {
   `).join('');
 
   return `
-    <section style="font-family: Arial, sans-serif; color: #222; padding: 18px; background: white;">
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 8px; background: white;">
       <style>
-        .part-doc { border: 1.5px solid #2c4737; padding: 14px; }
+        .part-doc { border: 1.5px solid #2c4737; padding: 10px; width: 100%; }
         .part-doc * { box-sizing: border-box; }
         .part-doc h1, .part-doc h2, .part-doc h3, .part-doc p { margin: 0; }
         .part-doc .doc-header {
@@ -939,19 +910,16 @@ function buildPartPrintableBody(part) {
           line-height: 1.45;
         }
         .part-doc .meta-grid {
-          display: grid;
-          grid-template-columns: 1.6fr 0.8fr 0.8fr 0.8fr;
-          gap: 0;
-          border: 1px solid #2c4737;
+          display: flex;
+          align-items: stretch;
+          gap: 6px;
           margin-bottom: 10px;
         }
         .part-doc .meta-cell {
-          border-right: 1px solid #2c4737;
-          min-height: 52px;
+          border: 1px solid #2c4737;
+          min-height: 48px;
           padding: 7px 8px;
-        }
-        .part-doc .meta-cell:last-child {
-          border-right: none;
+          flex: 0 0 auto;
         }
         .part-doc .meta-label {
           display: block;
@@ -982,7 +950,6 @@ function buildPartPrintableBody(part) {
         .part-doc th {
           background: #e7efe9;
           color: #22372b;
-          text-transform: uppercase;
           font-size: 9px;
           letter-spacing: 0.03em;
         }
@@ -1020,15 +987,15 @@ function buildPartPrintableBody(part) {
             <span class="meta-label">Fundo / ubicacion</span>
             <div class="meta-value">${escapeHtml(state.settings.location)}</div>
           </div>
-          <div class="meta-cell">
+          <div class="meta-cell" style="min-width: 110px;">
             <span class="meta-label">Fecha</span>
             <div class="meta-value">${formatDate(part.date)}</div>
           </div>
-          <div class="meta-cell">
+          <div class="meta-cell" style="min-width: 110px;">
             <span class="meta-label">Estado</span>
             <div class="meta-value">${escapeHtml(part.status)}</div>
           </div>
-          <div class="meta-cell">
+          <div class="meta-cell" style="min-width: 130px;">
             <span class="meta-label">Total personal</span>
             <div class="meta-value">${totalWorkers}</div>
           </div>
@@ -1036,13 +1003,13 @@ function buildPartPrintableBody(part) {
         <table>
           <thead>
             <tr>
-              <th style="width: 4%;">N</th>
-              <th style="width: 28%;">Trabajador</th>
-              <th style="width: 15%;">Labor manana</th>
-              <th style="width: 11%;">Campo manana</th>
-              <th style="width: 15%;">Labor tarde</th>
-              <th style="width: 11%;">Campo tarde</th>
-              <th style="width: 16%;">Observaciones</th>
+              <th style="width: 4%;">No.</th>
+              <th style="width: 28%;">APELLIDOS y NOMBRES</th>
+              <th style="width: 15%;">LABOR MA&#209;ANA</th>
+              <th style="width: 11%;">CAMPO</th>
+              <th style="width: 15%;">LABOR TARDE</th>
+              <th style="width: 11%;">CAMPO</th>
+              <th style="width: 16%;">OBSERVACIONES</th>
             </tr>
           </thead>
           <tbody>

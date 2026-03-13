@@ -1,4 +1,4 @@
-const CACHE_NAME = 'parte-diario-cache-v11';
+const CACHE_NAME = 'parte-diario-cache-v14';
 const ASSETS = [
   './',
   './index.html',
