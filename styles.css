@@ -233,6 +233,10 @@ label span {
   grid-template-columns: 1.1fr 1.4fr;
 }
 
+.worker-layout {
+  grid-template-columns: 1fr;
+}
+
 .narrow-form-layout {
   grid-template-columns: minmax(280px, 380px) 1fr;
 }
@@ -275,6 +279,39 @@ label span {
 .stack-form {
   display: grid;
   gap: 0.9rem;
+}
+
+.worker-form-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+}
+
+.worker-form-grid .full {
+  grid-column: 1 / -1;
+}
+
+.worker-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.worker-item-card {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 0.95rem;
+  background: #fbfdfb;
+}
+
+.worker-item-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  align-items: start;
+  margin-bottom: 0.8rem;
+}
+
+.worker-item-top h4 {
+  margin: 0 0 0.2rem;
 }
 
 .inline-toggle {
@@ -487,6 +524,10 @@ body:not(.auth-locked) .auth-overlay {
   .toolbar-grid {
     grid-template-columns: 1fr 1fr;
   }
+
+  .worker-form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 860px) {
@@ -618,6 +659,7 @@ body:not(.auth-locked) .auth-overlay {
 @media (max-width: 640px) {
   .stats-grid,
   .two-columns,
+  .worker-form-grid,
   .narrow-form-layout,
   .reports-grid,
   .toolbar-grid,
