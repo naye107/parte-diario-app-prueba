@@ -87,15 +87,15 @@ label span {
 .sidebar {
   background: #1f4d38;
   color: white;
-  padding: 1.2rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
+  gap: 0.9rem;
   position: sticky;
   top: 0;
   min-height: 100vh;
   height: 100vh;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .brand {
@@ -148,8 +148,11 @@ label span {
 
 .sidebar-footer {
   margin-top: auto;
-  font-size: 0.92rem;
-  color: rgba(255, 255, 255, 0.82);
+  width: 100%;
+}
+
+.sidebar-footer #logoutBtn {
+  width: 100%;
 }
 
 .main-content {
@@ -325,9 +328,7 @@ th {
 }
 
 .sticky-controls {
-  position: sticky;
-  top: 1rem;
-  z-index: 12;
+  position: static;
 }
 
 .current-part-card {
