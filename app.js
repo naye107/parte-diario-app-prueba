@@ -178,10 +178,10 @@ function bindEvents() {
   els.downloadReportPdfBtn.addEventListener('click', downloadReportPDF);
   els.exportReportBtn.addEventListener('click', exportReportCSV);
 
-  els.settingsForm.addEventListener('submit', saveSettings);
-  els.exportBackupBtn.addEventListener('click', exportBackup);
-  els.importBackupInput.addEventListener('change', importBackup);
-  els.resetDataBtn.addEventListener('click', resetAllData);
+  if (els.settingsForm) els.settingsForm.addEventListener('submit', saveSettings);
+  if (els.exportBackupBtn) els.exportBackupBtn.addEventListener('click', exportBackup);
+  if (els.importBackupInput) els.importBackupInput.addEventListener('change', importBackup);
+  if (els.resetDataBtn) els.resetDataBtn.addEventListener('click', resetAllData);
 }
 
 async function checkAuthAndStart() {
@@ -209,7 +209,7 @@ async function initMainApp() {
   els.partDate.value = todayISO();
   state = loadState();
   await hydrateStateFromServer();
-  els.settingsOwner.value = state.settings.owner || '';
+  if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
   refreshAll();
   openOrCreatePartForDate(els.partDate.value, false);
   appInitialized = true;
@@ -1678,6 +1678,7 @@ function buildReportPrintableBody(rows) {
 
 function saveSettings(event) {
   event.preventDefault();
+  if (!els.settingsOwner) return;
   state.settings.owner = els.settingsOwner.value.trim() || 'Supervisor';
   refreshAll();
   showToast('Ajustes guardados.');
@@ -1700,7 +1701,7 @@ function importBackup(event) {
       currentPartId = null;
       currentDraftRow = null;
       showSavedPartRows = false;
-      els.settingsOwner.value = state.settings.owner || '';
+      if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
       refreshAll();
       if (state.parts.length) {
         const latest = [...state.parts].sort((a, b) => b.date.localeCompare(a.date))[0];
@@ -1723,7 +1724,7 @@ function resetAllData() {
   currentPartId = null;
   currentDraftRow = null;
   showSavedPartRows = false;
-  els.settingsOwner.value = state.settings.owner || '';
+  if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
   resetWorkerForm();
   resetLaborForm();
   resetFieldForm();

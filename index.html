@@ -29,7 +29,8 @@
         <button class="nav-btn" data-view="labores">Labores</button>
         <button class="nav-btn" data-view="campos">Campos</button>
         <button class="nav-btn" data-view="reportes">Reportes</button>
-        <button class="nav-btn" data-view="ajustes">Ajustes</button>
+        <button class="nav-btn" data-view="jornales">Jornales</button>
+        <button class="nav-btn" data-view="rendimiento">Rendimiento</button>
       </nav>
       <div class="sidebar-footer">
         <button type="button" class="secondary-btn mini-btn" id="logoutBtn">Cerrar sesion</button>
@@ -288,49 +289,20 @@
         </div>
       </section>
 
-      <section class="view" id="view-ajustes">
-        <div class="cards-grid two-columns narrow-form-layout">
-          <article class="card">
-            <h3>Ajustes locales</h3>
-            <form id="settingsForm" class="stack-form">
-              <label>
-                <span>Responsable del registro</span>
-                <input type="text" id="settingsOwner" placeholder="Nombre del supervisor">
-              </label>
-              <label>
-                <span>Empresa</span>
-                <input type="text" value="AGRICOLA JAPURIMA S.A." readonly>
-              </label>
-              <label>
-                <span>Ubicacion fija</span>
-                <input type="text" value="Fundo Santa Teresa Bajo - Huaura" readonly>
-              </label>
-              <div class="button-row">
-                <button type="submit">Guardar ajustes</button>
-              </div>
-            </form>
-          </article>
+      <section class="view" id="view-jornales">
+        <article class="card">
+          <p class="eyebrow">AGRICOLA JAPURIMA S.A.</p>
+          <h3>Jornales</h3>
+          <p class="muted">Este bloque queda listo para definir su contenido en el siguiente paso.</p>
+        </article>
+      </section>
 
-          <article class="card">
-            <h3>Respaldo de datos</h3>
-            <p class="muted">Puedes exportar toda la base local a un archivo JSON o restaurarla desde un respaldo.</p>
-            <div class="button-row wrap">
-              <button id="exportBackupBtn">Exportar respaldo</button>
-              <label class="file-input-label secondary-btn">
-                Importar respaldo
-                <input type="file" id="importBackupInput" accept="application/json">
-              </label>
-              <button class="secondary-btn danger-outline" id="resetDataBtn">Borrar todos los datos</button>
-            </div>
-            <div class="spacer"></div>
-            <h4>Notas</h4>
-            <ul class="notes-list">
-              <li>Esta version guarda datos en el navegador del dispositivo.</li>
-              <li>Puede usarse en PC, tablet y celular.</li>
-              <li>Para uso multiusuario y sincronizado se recomienda desplegarla con base de datos en la nube.</li>
-            </ul>
-          </article>
-        </div>
+      <section class="view" id="view-rendimiento">
+        <article class="card">
+          <p class="eyebrow">AGRICOLA JAPURIMA S.A.</p>
+          <h3>Rendimiento</h3>
+          <p class="muted">Este bloque queda listo para definir su contenido en el siguiente paso.</p>
+        </article>
       </section>
     </main>
   </div>
