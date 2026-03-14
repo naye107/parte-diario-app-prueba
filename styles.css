@@ -549,6 +549,7 @@ body:not(.auth-locked) .auth-overlay {
   .app-shell {
     grid-template-columns: 1fr;
     align-items: start;
+    grid-auto-rows: min-content;
   }
 
   .sidebar {
@@ -659,6 +660,7 @@ body:not(.auth-locked) .auth-overlay {
     gap: 0.9rem;
     align-content: start;
     align-items: start;
+    grid-auto-rows: min-content;
   }
 
   .sticky-controls {
@@ -668,8 +670,17 @@ body:not(.auth-locked) .auth-overlay {
   .main-content > *,
   .view.active,
   .cards-grid,
-  .current-part-card {
+  .current-part-card,
+  #view-partes,
+  #view-ajustes,
+  #view-partes > *,
+  #view-ajustes > * {
     align-self: start;
+  }
+
+  #view-partes,
+  #view-ajustes {
+    grid-auto-rows: min-content;
   }
 }
 
