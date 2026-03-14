@@ -273,6 +273,7 @@ async function onLogoutClick() {
 }
 
 function switchView(viewName) {
+  closeMobileMenu();
   currentView = viewName;
   els.navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewName));
   els.views.forEach(view => view.classList.toggle('active', view.id === `view-${viewName}`));
