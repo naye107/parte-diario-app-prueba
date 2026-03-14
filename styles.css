@@ -369,7 +369,13 @@ th {
 }
 
 .reports-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+}
+
+.report-actions {
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
 .sticky-controls {
