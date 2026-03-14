@@ -100,6 +100,7 @@ const els = {
   reportWorker: document.getElementById('reportWorker'),
   reportLabor: document.getElementById('reportLabor'),
   reportField: document.getElementById('reportField'),
+  downloadReportPdfBtn: document.getElementById('downloadReportPdfBtn'),
   exportReportBtn: document.getElementById('exportReportBtn'),
   reportsTableBody: document.getElementById('reportsTableBody'),
   reportCountBadge: document.getElementById('reportCountBadge'),
@@ -173,6 +174,7 @@ function bindEvents() {
     event.preventDefault();
     runReports();
   });
+  els.downloadReportPdfBtn.addEventListener('click', downloadReportPDF);
   els.exportReportBtn.addEventListener('click', exportReportCSV);
 
   els.settingsForm.addEventListener('submit', saveSettings);
@@ -1433,6 +1435,243 @@ function exportReportCSV() {
   if (!lastReportResults.length) return showToast('No hay resultados para exportar.');
   downloadCSV(lastReportResults, `reporte-partes-${todayISO()}.csv`);
   showToast('Reporte exportado en CSV.');
+}
+
+function downloadReportPDF() {
+  if (!lastReportResults.length) {
+    runReports();
+  }
+  if (!lastReportResults.length) {
+    showToast('No hay resultados para exportar.');
+    return;
+  }
+  if (typeof window.html2pdf !== 'function') {
+    showToast('No se pudo cargar el generador de PDF.');
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.innerHTML = buildReportPrintableBody(lastReportResults);
+  const printable = container.firstElementChild;
+  if (!printable) {
+    showToast('No se pudo preparar el PDF del reporte.');
+    return;
+  }
+
+  printable.style.width = '277mm';
+  printable.style.maxWidth = '277mm';
+  printable.style.margin = '0 auto';
+  document.body.appendChild(printable);
+
+  const options = {
+    margin: [5, 5, 5, 5],
+    filename: `reporte-partes-${todayISO()}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 1.6, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+
+  window.html2pdf()
+    .set(options)
+    .from(printable)
+    .save()
+    .then(() => {
+      showToast('Reporte descargado en PDF.');
+    })
+    .catch(() => {
+      showToast('No se pudo generar el PDF del reporte.');
+    })
+    .finally(() => {
+      printable.remove();
+    });
+}
+
+function buildReportPrintableBody(rows) {
+  const basePath = window.location.pathname.endsWith('/')
+    ? window.location.pathname
+    : window.location.pathname.replace(/\/[^/]*$/, '/');
+  const logoUrl = `${window.location.origin}${basePath}icons/logo.png?v=20260312`;
+  const generatedAt = new Date().toLocaleString('es-PE');
+  const printableRows = rows.map((row, index) => `
+    <tr>
+      <td class="center">${index + 1}</td>
+      <td>${formatDate(row.fecha)}</td>
+      <td>${escapeHtml(row.trabajador)}</td>
+      <td>${escapeHtml(row.laborManana)}</td>
+      <td>${escapeHtml(row.campoManana)}</td>
+      <td>${escapeHtml(row.laborTarde)}</td>
+      <td>${escapeHtml(row.campoTarde)}</td>
+      <td>${escapeHtml(row.observaciones || '-')}</td>
+      <td>${escapeHtml(row.estado)}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 0; background: white;">
+      <style>
+        .report-doc { border: 1.5px solid #2c4737; padding: 8px; width: 100%; }
+        .report-doc * { box-sizing: border-box; }
+        .report-doc h1, .report-doc h2, .report-doc p { margin: 0; }
+        .report-doc .doc-header {
+          display: grid;
+          grid-template-columns: 155px 1fr 165px;
+          align-items: center;
+          gap: 12px;
+          border-bottom: 2px solid #2c4737;
+          padding-bottom: 10px;
+          margin-bottom: 10px;
+        }
+        .report-doc .logo-wrap {
+          height: 56px;
+          display: flex;
+          align-items: center;
+        }
+        .report-doc .logo-wrap img {
+          max-width: 145px;
+          max-height: 52px;
+          object-fit: contain;
+        }
+        .report-doc .doc-title {
+          text-align: center;
+        }
+        .report-doc .doc-title h1 {
+          font-size: 19px;
+          letter-spacing: 0.04em;
+          font-weight: 800;
+        }
+        .report-doc .doc-title h2 {
+          font-size: 11px;
+          margin-top: 3px;
+          font-weight: 700;
+        }
+        .report-doc .doc-code {
+          border: 1px solid #2c4737;
+          padding: 8px 10px;
+          font-size: 10px;
+          line-height: 1.45;
+        }
+        .report-doc .summary-strip {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 10px;
+        }
+        .report-doc .summary-cell {
+          border: 1px solid #2c4737;
+          min-height: 48px;
+          padding: 7px 8px;
+          flex: 0 0 auto;
+        }
+        .report-doc .summary-label {
+          display: block;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #516459;
+          margin-bottom: 4px;
+          letter-spacing: 0.04em;
+        }
+        .report-doc .summary-value {
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .report-doc table,
+        .report-doc tr,
+        .report-doc td,
+        .report-doc th {
+          page-break-inside: avoid;
+        }
+        .report-doc table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        .report-doc th, .report-doc td {
+          border: 1px solid #98a99e;
+          padding: 6px 6px;
+          text-align: left;
+          font-size: 12px;
+          vertical-align: top;
+          word-break: break-word;
+        }
+        .report-doc th {
+          background: #e7efe9;
+          color: #22372b;
+          font-size: 11px;
+          letter-spacing: 0.03em;
+        }
+        .report-doc .center {
+          text-align: center;
+        }
+        .report-doc .summary-row td {
+          font-weight: 700;
+          background: #f6faf7;
+        }
+        .report-doc .footer {
+          margin-top: 12px;
+          font-size: 10px;
+          color: #555;
+          text-align: right;
+        }
+      </style>
+      <div class="report-doc">
+        <div class="doc-header">
+          <div class="logo-wrap">
+            <img src="${escapeHtml(logoUrl)}" alt="Logo empresa">
+          </div>
+          <div class="doc-title">
+            <h1>${escapeHtml(state.settings.company)}</h1>
+            <h2>REPORTE DE DISTRIBUCION DE PERSONAL</h2>
+          </div>
+          <div class="doc-code">
+            <div><strong>Formato:</strong> Reporte</div>
+            <div><strong>Version:</strong> 1.0</div>
+            <div><strong>Area:</strong> Campo</div>
+          </div>
+        </div>
+        <div class="summary-strip">
+          <div class="summary-cell">
+            <span class="summary-label">Fundo</span>
+            <div class="summary-value">${escapeHtml(state.settings.location)}</div>
+          </div>
+          <div class="summary-cell">
+            <span class="summary-label">Desde</span>
+            <div class="summary-value">${els.reportFrom.value ? formatDate(els.reportFrom.value) : 'Todos'}</div>
+          </div>
+          <div class="summary-cell">
+            <span class="summary-label">Hasta</span>
+            <div class="summary-value">${els.reportTo.value ? formatDate(els.reportTo.value) : 'Todos'}</div>
+          </div>
+          <div class="summary-cell">
+            <span class="summary-label">Registros</span>
+            <div class="summary-value">${rows.length}</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 4%;">No.</th>
+              <th style="width: 9%;">Fecha</th>
+              <th style="width: 20%;">APELLIDOS y NOMBRES</th>
+              <th style="width: 13%;">LABOR MA&#209;ANA</th>
+              <th style="width: 10%;">CAMPO</th>
+              <th style="width: 13%;">LABOR TARDE</th>
+              <th style="width: 10%;">CAMPO</th>
+              <th style="width: 13%;">OBSERVACIONES</th>
+              <th style="width: 8%;">ESTADO</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printableRows || '<tr><td colspan="9">Sin datos</td></tr>'}
+            <tr class="summary-row">
+              <td colspan="9">Total de registros: ${rows.length}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="footer">Generado el ${generatedAt}</p>
+      </div>
+    </section>
+  `;
 }
 
 function saveSettings(event) {
