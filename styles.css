@@ -674,6 +674,63 @@ body:not(.auth-locked) .auth-overlay {
 }
 
 @media (max-width: 640px) {
+  .app-shell {
+    align-items: start;
+  }
+
+  .sidebar {
+    min-height: 0;
+    height: auto;
+    max-height: none;
+    padding: 0.5rem 0.65rem 0.6rem;
+    gap: 0.45rem;
+    display: grid;
+    align-content: start;
+  }
+
+  .brand {
+    min-height: 48px;
+  }
+
+  .brand-image {
+    width: 94px;
+    height: 36px;
+  }
+
+  .brand-text {
+    padding: 0 0.2rem 0 0.8rem;
+  }
+
+  .brand h1 {
+    font-size: 1rem;
+  }
+
+  .brand p {
+    font-size: 0.78rem;
+  }
+
+  .menu-toggle {
+    min-height: 38px;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .nav,
+  .sidebar-footer {
+    display: none;
+    max-height: none;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  body.sidebar-open .nav {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  body.sidebar-open .sidebar-footer {
+    display: block;
+  }
+
   .stats-grid,
   .dashboard-stats-grid,
   .two-columns,

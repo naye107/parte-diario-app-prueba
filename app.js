@@ -126,6 +126,7 @@ async function boot() {
   setupNetworkState();
   bindEvents();
   bindAuthEvents();
+  closeMobileMenu();
   await checkAuthAndStart();
   registerServiceWorker();
 }
