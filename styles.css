@@ -95,7 +95,8 @@ label span {
   top: 0;
   min-height: 100vh;
   height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .brand {
@@ -159,6 +160,9 @@ label span {
   padding: 1.2rem;
   display: grid;
   gap: 1rem;
+  align-content: start;
+  align-items: start;
+  grid-auto-rows: min-content;
 }
 
 .card {
@@ -174,6 +178,7 @@ label span {
   gap: 1rem;
   justify-content: space-between;
   align-items: start;
+  align-self: start;
 }
 
 .page-header h2 {
@@ -658,6 +663,11 @@ body:not(.auth-locked) .auth-overlay {
     display: block;
   }
 
+  body.sidebar-open .sidebar {
+    max-height: 78vh;
+    overflow-y: auto;
+  }
+
   .page-header,
   .section-title-row,
   .part-row-top {
@@ -747,6 +757,11 @@ body:not(.auth-locked) .auth-overlay {
 
   body.sidebar-open .sidebar-footer {
     display: block;
+  }
+
+  body.sidebar-open .sidebar {
+    max-height: 78vh;
+    overflow-y: auto;
   }
 
   .stats-grid,
