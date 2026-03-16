@@ -1592,6 +1592,13 @@ function downloadJornalesPDF() {
     });
 }
 
+function getLogoUrl() {
+  const basePath = window.location.pathname.endsWith('/')
+    ? window.location.pathname
+    : window.location.pathname.replace(/\/[^/]*$/, '/');
+  return `${window.location.origin}${basePath}icons/logo.png?v=20260312`;
+}
+
 function exportReportCSV() {
   if (!lastReportResults.length) {
     runReports();
@@ -2010,13 +2017,6 @@ function buildJornalesPrintableBody(rows) {
       </div>
     </section>
   `;
-}
-
-function getLogoUrl() {
-  const basePath = window.location.pathname.endsWith('/')
-    ? window.location.pathname
-    : window.location.pathname.replace(/\/[^/]*$/, '/');
-  return `${window.location.origin}${basePath}icons/logo.png?v=20260312`;
 }
 
 function saveSettings(event) {
