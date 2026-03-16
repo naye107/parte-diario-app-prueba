@@ -413,6 +413,8 @@
               </label>
               <div class="button-row align-end report-actions">
                 <button type="submit">Buscar</button>
+                <button type="button" class="secondary-btn" id="downloadPerformancePdfBtn">Descargar PDF</button>
+                <button type="button" class="secondary-btn" id="exportPerformanceBtn">Exportar CSV</button>
               </div>
             </form>
           </article>
@@ -457,6 +459,28 @@
                   </tr>
                 </thead>
                 <tbody id="performanceTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="section-title-row">
+              <h3>Consolidado por campo y labor</h3>
+              <span class="badge" id="performanceSummaryCountBadge">0 grupos</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Campo</th>
+                    <th>Labor</th>
+                    <th>Total cantidad</th>
+                    <th>Unidad</th>
+                    <th>Total jornales</th>
+                    <th>Rendimiento</th>
+                  </tr>
+                </thead>
+                <tbody id="performanceSummaryTableBody"></tbody>
               </table>
             </div>
           </article>

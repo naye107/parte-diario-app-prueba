@@ -30,6 +30,7 @@ let currentPartId = null;
 let lastReportResults = [];
 let lastJornalesResults = [];
 let lastPerformanceResults = [];
+let lastPerformanceSummary = [];
 let toastTimer = null;
 let serverSyncSupported = false;
 let serverSyncInFlight = false;
@@ -138,12 +139,16 @@ const els = {
   performanceFilterWorker: document.getElementById('performanceFilterWorker'),
   performanceFilterLabor: document.getElementById('performanceFilterLabor'),
   performanceFilterField: document.getElementById('performanceFilterField'),
+  downloadPerformancePdfBtn: document.getElementById('downloadPerformancePdfBtn'),
+  exportPerformanceBtn: document.getElementById('exportPerformanceBtn'),
   performanceTotalJornales: document.getElementById('performanceTotalJornales'),
   performanceTotalQuantity: document.getElementById('performanceTotalQuantity'),
   performanceAverage: document.getElementById('performanceAverage'),
   performanceCount: document.getElementById('performanceCount'),
   performanceCountBadge: document.getElementById('performanceCountBadge'),
   performanceTableBody: document.getElementById('performanceTableBody'),
+  performanceSummaryCountBadge: document.getElementById('performanceSummaryCountBadge'),
+  performanceSummaryTableBody: document.getElementById('performanceSummaryTableBody'),
 
   settingsForm: document.getElementById('settingsForm'),
   settingsOwner: document.getElementById('settingsOwner'),
@@ -239,6 +244,8 @@ function bindEvents() {
       runPerformanceReport();
     });
   }
+  if (els.downloadPerformancePdfBtn) els.downloadPerformancePdfBtn.addEventListener('click', downloadPerformancePDF);
+  if (els.exportPerformanceBtn) els.exportPerformanceBtn.addEventListener('click', exportPerformanceCSV);
   if (els.performanceTableBody) {
     els.performanceTableBody.addEventListener('click', onPerformanceTableClick);
   }
@@ -1639,15 +1646,40 @@ function runPerformanceReport() {
   const totalQuantity = lastPerformanceResults.reduce((acc, item) => acc + item.quantity, 0);
   const average = totalJornales > 0 ? (totalQuantity / totalJornales) : 0;
   const averageUnit = lastPerformanceResults[0]?.unit || '';
+  const summaryMap = new Map();
+
+  lastPerformanceResults.forEach(item => {
+    const key = [item.campo, item.labor, item.unit].join('||');
+    const current = summaryMap.get(key) || {
+      campo: item.campo,
+      labor: item.labor,
+      unidad: item.unit,
+      totalCantidad: 0,
+      totalJornales: 0,
+      rendimiento: 0
+    };
+    current.totalCantidad += item.quantity;
+    current.totalJornales += item.jornales;
+    current.rendimiento = current.totalJornales > 0 ? (current.totalCantidad / current.totalJornales) : 0;
+    summaryMap.set(key, current);
+  });
+  lastPerformanceSummary = [...summaryMap.values()].sort((a, b) => {
+    if (a.campo === b.campo) return a.labor.localeCompare(b.labor);
+    return a.campo.localeCompare(b.campo);
+  });
 
   if (els.performanceTotalJornales) els.performanceTotalJornales.textContent = formatDecimal(totalJornales);
   if (els.performanceTotalQuantity) els.performanceTotalQuantity.textContent = formatDecimal(totalQuantity);
   if (els.performanceAverage) els.performanceAverage.textContent = `${formatDecimal(average)}${averageUnit ? ` ${averageUnit}/jornal` : ''}`;
   if (els.performanceCount) els.performanceCount.textContent = String(lastPerformanceResults.length);
   if (els.performanceCountBadge) els.performanceCountBadge.textContent = `${lastPerformanceResults.length} registros`;
+  if (els.performanceSummaryCountBadge) els.performanceSummaryCountBadge.textContent = `${lastPerformanceSummary.length} grupos`;
 
   if (!lastPerformanceResults.length) {
     els.performanceTableBody.innerHTML = '<tr><td colspan="9">No se encontraron resultados.</td></tr>';
+    if (els.performanceSummaryTableBody) {
+      els.performanceSummaryTableBody.innerHTML = '<tr><td colspan="6">No se encontraron resultados.</td></tr>';
+    }
     return;
   }
 
@@ -1669,6 +1701,19 @@ function runPerformanceReport() {
       </td>
     </tr>
   `).join('');
+
+  if (els.performanceSummaryTableBody) {
+    els.performanceSummaryTableBody.innerHTML = lastPerformanceSummary.map(item => `
+      <tr>
+        <td>${escapeHtml(item.campo)}</td>
+        <td>${escapeHtml(item.labor)}</td>
+        <td>${formatDecimal(item.totalCantidad)}</td>
+        <td>${escapeHtml(item.unidad)}</td>
+        <td>${formatDecimal(item.totalJornales)}</td>
+        <td>${formatDecimal(item.rendimiento)} ${escapeHtml(item.unidad)}/jornal</td>
+      </tr>
+    `).join('');
+  }
 }
 
 function savePerformance(event) {
@@ -1733,6 +1778,75 @@ function onPerformanceTableClick(event) {
     refreshAll();
     showToast('Rendimiento eliminado.');
   }
+}
+
+function exportPerformanceCSV() {
+  if (!lastPerformanceResults.length) {
+    runPerformanceReport();
+  }
+  if (!lastPerformanceResults.length) return showToast('No hay resultados de rendimiento para exportar.');
+  const exportRows = lastPerformanceResults.map(item => ({
+    fecha: item.date,
+    trabajador: item.trabajador,
+    labor: item.labor,
+    campo: item.campo,
+    cantidad: item.quantity,
+    unidad: item.unit,
+    jornales: item.jornales,
+    rendimiento: item.rendimiento
+  }));
+  downloadCSV(exportRows, `rendimiento-${todayISO()}.csv`);
+  showToast('Rendimiento exportado en CSV.');
+}
+
+function downloadPerformancePDF() {
+  if (!lastPerformanceResults.length) {
+    runPerformanceReport();
+  }
+  if (!lastPerformanceResults.length) {
+    showToast('No hay resultados de rendimiento para exportar.');
+    return;
+  }
+  if (typeof window.html2pdf !== 'function') {
+    showToast('No se pudo cargar el generador de PDF.');
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.innerHTML = buildPerformancePrintableBody(lastPerformanceResults, lastPerformanceSummary);
+  const printable = container.firstElementChild;
+  if (!printable) {
+    showToast('No se pudo preparar el PDF de rendimiento.');
+    return;
+  }
+
+  printable.style.width = '277mm';
+  printable.style.maxWidth = '277mm';
+  printable.style.margin = '0 auto';
+  document.body.appendChild(printable);
+
+  const options = {
+    margin: [5, 5, 5, 5],
+    filename: `rendimiento-${todayISO()}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 1.6, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+
+  window.html2pdf()
+    .set(options)
+    .from(printable)
+    .save()
+    .then(() => {
+      showToast('Rendimiento descargado en PDF.');
+    })
+    .catch(() => {
+      showToast('No se pudo generar el PDF de rendimiento.');
+    })
+    .finally(() => {
+      printable.remove();
+    });
 }
 
 function exportJornalesCSV() {
@@ -2212,6 +2326,219 @@ function buildJornalesPrintableBody(rows) {
             ${printableRows || '<tr><td colspan="5">Sin datos</td></tr>'}
             <tr class="summary-row">
               <td colspan="5">Total de jornales: ${totalJornales}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="footer">Generado el ${generatedAt}</p>
+      </div>
+    </section>
+  `;
+}
+
+function buildPerformancePrintableBody(rows, summaryRows) {
+  const logoUrl = getLogoUrl();
+  const generatedAt = new Date().toLocaleString('es-PE');
+  const totalJornales = rows.reduce((acc, item) => acc + item.jornales, 0);
+  const totalQuantity = rows.reduce((acc, item) => acc + item.quantity, 0);
+  const average = totalJornales > 0 ? (totalQuantity / totalJornales) : 0;
+  const averageUnit = rows[0]?.unit || '';
+
+  const printableRows = rows.map((row, index) => `
+    <tr>
+      <td class="center">${index + 1}</td>
+      <td>${formatDate(row.date)}</td>
+      <td>${escapeHtml(row.trabajador)}</td>
+      <td>${escapeHtml(row.labor)}</td>
+      <td>${escapeHtml(row.campo)}</td>
+      <td class="center">${formatDecimal(row.quantity)}</td>
+      <td>${escapeHtml(row.unit)}</td>
+      <td class="center">${formatDecimal(row.jornales)}</td>
+      <td>${formatDecimal(row.rendimiento)} ${escapeHtml(row.unit)}/jornal</td>
+    </tr>
+  `).join('');
+
+  const printableSummaryRows = summaryRows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.campo)}</td>
+      <td>${escapeHtml(row.labor)}</td>
+      <td class="center">${formatDecimal(row.totalCantidad)}</td>
+      <td>${escapeHtml(row.unidad)}</td>
+      <td class="center">${formatDecimal(row.totalJornales)}</td>
+      <td>${formatDecimal(row.rendimiento)} ${escapeHtml(row.unidad)}/jornal</td>
+    </tr>
+  `).join('');
+
+  return `
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 0; background: white;">
+      <style>
+        .perf-doc { border: 1.5px solid #2c4737; padding: 8px; width: 100%; }
+        .perf-doc * { box-sizing: border-box; }
+        .perf-doc h1, .perf-doc h2, .perf-doc h3, .perf-doc p { margin: 0; }
+        .perf-doc .doc-header {
+          display: grid;
+          grid-template-columns: 155px 1fr 165px;
+          align-items: center;
+          gap: 12px;
+          border-bottom: 2px solid #2c4737;
+          padding-bottom: 10px;
+          margin-bottom: 10px;
+        }
+        .perf-doc .logo-wrap {
+          height: 56px;
+          display: flex;
+          align-items: center;
+        }
+        .perf-doc .logo-wrap img {
+          max-width: 145px;
+          max-height: 52px;
+          object-fit: contain;
+        }
+        .perf-doc .doc-title { text-align: center; }
+        .perf-doc .doc-title h1 {
+          font-size: 19px;
+          letter-spacing: 0.04em;
+          font-weight: 800;
+        }
+        .perf-doc .doc-title h2 {
+          font-size: 11px;
+          margin-top: 3px;
+          font-weight: 700;
+        }
+        .perf-doc .doc-code {
+          border: 1px solid #2c4737;
+          padding: 8px 10px;
+          font-size: 10px;
+          line-height: 1.45;
+        }
+        .perf-doc .summary-strip {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 10px;
+        }
+        .perf-doc .summary-cell {
+          border: 1px solid #2c4737;
+          min-height: 48px;
+          padding: 7px 8px;
+          flex: 0 0 auto;
+        }
+        .perf-doc .summary-label {
+          display: block;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #516459;
+          margin-bottom: 4px;
+          letter-spacing: 0.04em;
+        }
+        .perf-doc .summary-value {
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .perf-doc .table-title {
+          margin: 12px 0 6px;
+          font-size: 12px;
+          font-weight: 700;
+          color: #22372b;
+        }
+        .perf-doc table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        .perf-doc th, .perf-doc td {
+          border: 1px solid #98a99e;
+          padding: 6px 6px;
+          text-align: left;
+          font-size: 11px;
+          vertical-align: top;
+          word-break: break-word;
+        }
+        .perf-doc th {
+          background: #e7efe9;
+          color: #22372b;
+          font-size: 10px;
+          letter-spacing: 0.03em;
+        }
+        .perf-doc .center { text-align: center; }
+        .perf-doc .summary-row td {
+          font-weight: 700;
+          background: #f6faf7;
+        }
+        .perf-doc .footer {
+          margin-top: 12px;
+          font-size: 10px;
+          color: #555;
+          text-align: right;
+        }
+      </style>
+      <div class="perf-doc">
+        <div class="doc-header">
+          <div class="logo-wrap">
+            <img src="${escapeHtml(logoUrl)}" alt="Logo empresa">
+          </div>
+          <div class="doc-title">
+            <h1>${escapeHtml(state.settings.company)}</h1>
+            <h2>REPORTE DE RENDIMIENTO</h2>
+          </div>
+          <div class="doc-code">
+            <div><strong>Formato:</strong> Rendimiento</div>
+            <div><strong>Version:</strong> 1.0</div>
+            <div><strong>Area:</strong> Campo</div>
+          </div>
+        </div>
+        <div class="summary-strip">
+          <div class="summary-cell" style="min-width: 220px;">
+            <span class="summary-label">Fundo / ubicacion</span>
+            <div class="summary-value">${escapeHtml(state.settings.location)}</div>
+          </div>
+          <div class="summary-cell" style="min-width: 120px;">
+            <span class="summary-label">Total jornales</span>
+            <div class="summary-value">${formatDecimal(totalJornales)}</div>
+          </div>
+          <div class="summary-cell" style="min-width: 120px;">
+            <span class="summary-label">Total cantidad</span>
+            <div class="summary-value">${formatDecimal(totalQuantity)}</div>
+          </div>
+          <div class="summary-cell" style="min-width: 150px;">
+            <span class="summary-label">Rendimiento promedio</span>
+            <div class="summary-value">${formatDecimal(average)}${averageUnit ? ` ${escapeHtml(averageUnit)}/jornal` : ''}</div>
+          </div>
+        </div>
+        <p class="table-title">Detalle de registros</p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 5%;">No.</th>
+              <th style="width: 10%;">FECHA</th>
+              <th style="width: 18%;">TRABAJADOR</th>
+              <th style="width: 14%;">LABOR</th>
+              <th style="width: 13%;">CAMPO</th>
+              <th style="width: 9%;">CANTIDAD</th>
+              <th style="width: 8%;">UNIDAD</th>
+              <th style="width: 9%;">JORNALES</th>
+              <th style="width: 14%;">RENDIMIENTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printableRows || '<tr><td colspan="9">Sin datos</td></tr>'}
+          </tbody>
+        </table>
+        <p class="table-title">Consolidado por campo y labor</p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 22%;">CAMPO</th>
+              <th style="width: 24%;">LABOR</th>
+              <th style="width: 14%;">TOTAL CANTIDAD</th>
+              <th style="width: 12%;">UNIDAD</th>
+              <th style="width: 14%;">TOTAL JORNALES</th>
+              <th style="width: 14%;">RENDIMIENTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printableSummaryRows || '<tr><td colspan="6">Sin datos</td></tr>'}
+            <tr class="summary-row">
+              <td colspan="6">Total de registros: ${rows.length}</td>
             </tr>
           </tbody>
         </table>
