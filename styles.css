@@ -203,6 +203,15 @@ label span {
   align-items: center;
 }
 
+.page-header .header-badges {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+  width: auto;
+  max-width: 520px;
+}
+
 .wrap { flex-wrap: wrap; }
 .align-end { align-items: end; }
 
@@ -220,6 +229,27 @@ label span {
 
 .badge.success {
   background: rgba(34, 84, 61, 0.12);
+}
+
+.page-header .badge,
+.page-header #syncNowBtn {
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 34px;
+  max-width: max-content;
+}
+
+.page-header .badge {
+  padding: 0.35rem 0.7rem;
+  line-height: 1.15;
+  font-size: 0.84rem;
+}
+
+.page-header #syncNowBtn {
+  padding: 0.4rem 0.8rem;
+  border-radius: 14px;
+  white-space: nowrap;
+  font-size: 0.84rem;
 }
 
 .view { display: none; gap: 1rem; }
@@ -792,9 +822,26 @@ body:not(.auth-locked) .auth-overlay {
     flex-wrap: wrap;
   }
 
+  .page-header .header-badges {
+    width: 100%;
+    gap: 0.5rem;
+    justify-content: flex-start;
+  }
+
+  .page-header .badge,
+  .page-header #syncNowBtn {
+    width: auto;
+    max-width: max-content;
+  }
+
   button,
   .file-input-label {
     width: 100%;
+    justify-content: center;
+  }
+
+  .page-header button {
+    width: auto;
     justify-content: center;
   }
 
