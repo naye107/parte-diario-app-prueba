@@ -45,6 +45,8 @@ const DEFAULT_STATE = {
   deletedWorkers: [],
   deletedLabors: [],
   deletedFields: [],
+  deletedPerformances: [],
+  deletedParts: [],
   parts: [],
   performances: []
 };
@@ -70,6 +72,8 @@ function normalizeState(input) {
   merged.deletedWorkers = normalizeDeletedKeys(input?.deletedWorkers);
   merged.deletedLabors = normalizeDeletedKeys(input?.deletedLabors);
   merged.deletedFields = normalizeDeletedKeys(input?.deletedFields);
+  merged.deletedPerformances = normalizeDeletedKeys(input?.deletedPerformances);
+  merged.deletedParts = normalizeDeletedKeys(input?.deletedParts);
   merged.workers = Array.isArray(input?.workers) ? input.workers.map(worker => ({
     id: worker.id || uid(),
     code: worker.code || '',
@@ -118,7 +122,9 @@ function normalizeState(input) {
     quantity: Number(item.quantity) || 0,
     unit: item.unit || '',
     jornales: Number(item.jornales) || 0,
-    notes: item.notes || ''
+    notes: item.notes || '',
+    updatedAt: item.updatedAt || new Date().toISOString(),
+    deletedAt: item.deletedAt || null
   })) : [];
   return reconcileCatalogState(merged);
 }
@@ -221,14 +227,20 @@ function reconcileCatalogState(inputState) {
       afternoonLaborId: laborsResult.aliasMap.get(row.afternoonLaborId) || row.afternoonLaborId,
       afternoonFieldId: fieldsResult.aliasMap.get(row.afternoonFieldId) || row.afternoonFieldId
     }))
-  }));
+  })).filter(part => {
+    const deletedAt = findDeletedAt(stateToFix.deletedParts, part.id);
+    return deletedAt < (part.updatedAt || '') && !part.deletedAt;
+  });
 
   stateToFix.performances = stateToFix.performances.map(item => ({
     ...item,
     workerId: workersResult.aliasMap.get(item.workerId) || item.workerId,
     laborId: laborsResult.aliasMap.get(item.laborId) || item.laborId,
     fieldId: fieldsResult.aliasMap.get(item.fieldId) || item.fieldId
-  }));
+  })).filter(item => {
+    const deletedAt = findDeletedAt(stateToFix.deletedPerformances, item.id);
+    return deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
 
   return stateToFix;
 }
@@ -252,6 +264,8 @@ function mergeStates(baseState, incomingState) {
     deletedWorkers: mergeByKey(remote.deletedWorkers, incoming.deletedWorkers, item => item.key),
     deletedLabors: mergeByKey(remote.deletedLabors, incoming.deletedLabors, item => item.key),
     deletedFields: mergeByKey(remote.deletedFields, incoming.deletedFields, item => item.key),
+    deletedPerformances: mergeByKey(remote.deletedPerformances, incoming.deletedPerformances, item => item.key),
+    deletedParts: mergeByKey(remote.deletedParts, incoming.deletedParts, item => item.key),
     parts: mergeByKey(remote.parts, incoming.parts, item => item.id),
     performances: mergeByKey(remote.performances, incoming.performances, item => item.id)
   });

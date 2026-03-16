@@ -16,6 +16,8 @@ const initialState = {
   deletedWorkers: [],
   deletedLabors: [],
   deletedFields: [],
+  deletedPerformances: [],
+  deletedParts: [],
   parts: [],
   performances: []
 };
@@ -394,6 +396,8 @@ function normalizeState(input) {
   merged.deletedWorkers = normalizeDeletedKeys(input?.deletedWorkers);
   merged.deletedLabors = normalizeDeletedKeys(input?.deletedLabors);
   merged.deletedFields = normalizeDeletedKeys(input?.deletedFields);
+  merged.deletedPerformances = normalizeDeletedKeys(input?.deletedPerformances);
+  merged.deletedParts = normalizeDeletedKeys(input?.deletedParts);
   merged.workers = Array.isArray(input?.workers) ? input.workers.map(worker => ({
     id: worker.id || uid(),
     code: worker.code || '',
@@ -442,7 +446,9 @@ function normalizeState(input) {
     quantity: Number(item.quantity) || 0,
     unit: item.unit || '',
     jornales: Number(item.jornales) || 0,
-    notes: item.notes || ''
+    notes: item.notes || '',
+    updatedAt: item.updatedAt || new Date().toISOString(),
+    deletedAt: item.deletedAt || null
   })) : [];
   return reconcileCatalogState(merged);
 }
@@ -545,14 +551,20 @@ function reconcileCatalogState(inputState) {
       afternoonLaborId: laborsResult.aliasMap.get(row.afternoonLaborId) || row.afternoonLaborId,
       afternoonFieldId: fieldsResult.aliasMap.get(row.afternoonFieldId) || row.afternoonFieldId
     }))
-  }));
+  })).filter(part => {
+    const deletedAt = findDeletedAt(stateToFix.deletedParts, part.id);
+    return deletedAt < (part.updatedAt || '') && !part.deletedAt;
+  });
 
   stateToFix.performances = stateToFix.performances.map(item => ({
     ...item,
     workerId: workersResult.aliasMap.get(item.workerId) || item.workerId,
     laborId: laborsResult.aliasMap.get(item.laborId) || item.laborId,
     fieldId: fieldsResult.aliasMap.get(item.fieldId) || item.fieldId
-  }));
+  })).filter(item => {
+    const deletedAt = findDeletedAt(stateToFix.deletedPerformances, item.id);
+    return deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
   return stateToFix;
 }
 
@@ -575,6 +587,8 @@ function mergeStates(localState, remoteState) {
     deletedWorkers: mergeByKey(remote.deletedWorkers, local.deletedWorkers, item => item.key),
     deletedLabors: mergeByKey(remote.deletedLabors, local.deletedLabors, item => item.key),
     deletedFields: mergeByKey(remote.deletedFields, local.deletedFields, item => item.key),
+    deletedPerformances: mergeByKey(remote.deletedPerformances, local.deletedPerformances, item => item.key),
+    deletedParts: mergeByKey(remote.deletedParts, local.deletedParts, item => item.key),
     parts: mergeByKey(remote.parts, local.parts, item => item.id),
     performances: mergeByKey(remote.performances, local.performances, item => item.id)
   });
@@ -1022,7 +1036,7 @@ function deleteCurrentPart() {
   const confirmed = window.confirm(`Se eliminara el parte del ${formatDate(part.date)}${rowsInfo}. Esta accion no se puede deshacer.`);
   if (!confirmed) return;
 
-  state.parts = state.parts.filter(item => item.id !== part.id);
+  markEntityDeleted('parts', 'deletedParts', part, item => item.id);
   currentPartId = null;
   refreshAll();
   showToast(`Se elimino el parte del ${formatDate(part.date)}.`);
@@ -1954,6 +1968,7 @@ function runPerformanceReport() {
 
 function savePerformance(event) {
   event.preventDefault();
+  const updatedAt = new Date().toISOString();
   const payload = {
     id: els.performanceId.value || uid(),
     date: els.performanceDate.value || todayISO(),
@@ -1963,13 +1978,16 @@ function savePerformance(event) {
     quantity: Number(els.performanceQuantity.value),
     unit: els.performanceUnit.value.trim(),
     jornales: Number(els.performanceJornales.value),
-    notes: els.performanceNotes.value.trim()
+    notes: els.performanceNotes.value.trim(),
+    updatedAt,
+    deletedAt: null
   };
 
   if (!payload.workerId || !payload.laborId || !payload.fieldId) return showToast('Completa trabajador, labor y campo.');
   if (!payload.quantity || payload.quantity <= 0) return showToast('Ingresa una cantidad valida.');
   if (!payload.unit) return showToast('Ingresa la unidad.');
   if (!payload.jornales || payload.jornales <= 0) return showToast('Ingresa jornales validos.');
+  removeDeletedKey('deletedPerformances', payload.id);
 
   const existingIndex = state.performances.findIndex(item => item.id === payload.id);
   if (existingIndex >= 0) state.performances[existingIndex] = payload;
@@ -2010,7 +2028,7 @@ function onPerformanceTableClick(event) {
 
   if (btn.dataset.action === 'delete') {
     if (!window.confirm('Eliminar este registro de rendimiento?')) return;
-    state.performances = state.performances.filter(entry => entry.id !== item.id);
+    markEntityDeleted('performances', 'deletedPerformances', item, entry => entry.id);
     refreshAll();
     showToast('Rendimiento eliminado.');
   }
