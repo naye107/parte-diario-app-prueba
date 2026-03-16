@@ -49,7 +49,8 @@ const DEFAULT_STATE = {
     { id: uid(), name: 'Campo 2', active: true },
     { id: uid(), name: 'Campo 3', active: true }
   ],
-  parts: []
+  parts: [],
+  performances: []
 };
 
 const readStateStmt = db.prepare('SELECT data, updated_at AS updatedAt FROM app_state WHERE id = 1');
@@ -89,7 +90,39 @@ function normalizeState(input) {
       notes: row.notes || ''
     })) : []
   })) : [];
+  merged.performances = Array.isArray(input?.performances) ? input.performances.map(item => ({
+    id: item.id || uid(),
+    date: item.date || new Date().toISOString().slice(0, 10),
+    workerId: item.workerId || '',
+    laborId: item.laborId || '',
+    fieldId: item.fieldId || '',
+    quantity: Number(item.quantity) || 0,
+    unit: item.unit || '',
+    jornales: Number(item.jornales) || 0,
+    notes: item.notes || ''
+  })) : [];
   return merged;
+}
+
+function mergeByKey(remoteItems, incomingItems, getKey) {
+  const merged = new Map();
+  [...remoteItems, ...incomingItems].forEach(item => {
+    merged.set(getKey(item), item);
+  });
+  return [...merged.values()];
+}
+
+function mergeStates(baseState, incomingState) {
+  const remote = normalizeState(baseState);
+  const incoming = normalizeState(incomingState);
+  return normalizeState({
+    settings: { ...remote.settings, ...incoming.settings },
+    workers: mergeByKey(remote.workers, incoming.workers, item => item.id),
+    labors: mergeByKey(remote.labors, incoming.labors, item => item.id),
+    fields: mergeByKey(remote.fields, incoming.fields, item => item.id),
+    parts: mergeByKey(remote.parts, incoming.parts, item => item.id),
+    performances: mergeByKey(remote.performances, incoming.performances, item => item.id)
+  });
 }
 
 function loadState() {
@@ -110,7 +143,9 @@ function loadState() {
 }
 
 function saveState(nextState) {
-  const normalized = normalizeState(nextState);
+  const currentStored = readStateStmt.get();
+  const currentState = currentStored ? normalizeState(JSON.parse(currentStored.data)) : normalizeState(DEFAULT_STATE);
+  const normalized = mergeStates(currentState, nextState);
   const updatedAt = new Date().toISOString();
   writeStateStmt.run({
     data: JSON.stringify(normalized),

@@ -425,6 +425,27 @@ function normalizeState(input) {
   return merged;
 }
 
+function mergeByKey(localItems, remoteItems, getKey) {
+  const merged = new Map();
+  [...localItems, ...remoteItems].forEach(item => {
+    merged.set(getKey(item), item);
+  });
+  return [...merged.values()];
+}
+
+function mergeStates(localState, remoteState) {
+  const local = normalizeState(localState);
+  const remote = normalizeState(remoteState);
+  return normalizeState({
+    settings: { ...remote.settings, ...local.settings },
+    workers: mergeByKey(remote.workers, local.workers, item => item.id),
+    labors: mergeByKey(remote.labors, local.labors, item => item.id),
+    fields: mergeByKey(remote.fields, local.fields, item => item.id),
+    parts: mergeByKey(remote.parts, local.parts, item => item.id),
+    performances: mergeByKey(remote.performances, local.performances, item => item.id)
+  });
+}
+
 function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   queueServerSync();
@@ -468,13 +489,9 @@ async function hydrateStateFromServer() {
     const payload = await response.json();
     const remoteState = normalizeState(payload?.state || payload);
     serverSyncSupported = true;
-    if (stateDataScore(localSnapshot) > stateDataScore(remoteState)) {
-      state = localSnapshot;
-      queueServerSync();
-    } else {
-      state = remoteState;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
+    state = mergeStates(localSnapshot, remoteState);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    queueServerSync();
   } catch (_error) {
     serverSyncSupported = false;
   } finally {
@@ -507,6 +524,9 @@ async function syncStateToServer() {
       throw new Error('UNAUTHORIZED');
     }
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    state = normalizeState(payload?.state || payload);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     serverSyncPending = false;
   } catch (_error) {
     serverSyncPending = true;
