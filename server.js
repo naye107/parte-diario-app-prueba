@@ -40,16 +40,8 @@ const DEFAULT_STATE = {
     location: HEADER_LOCATION
   },
   workers: [],
-  labors: [
-    { id: 'seed-labor-cosecha', name: 'Cosecha', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
-    { id: 'seed-labor-riego', name: 'Riego', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
-    { id: 'seed-labor-poda', name: 'Poda', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null }
-  ],
-  fields: [
-    { id: 'seed-field-campo-1', name: 'Campo 1', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
-    { id: 'seed-field-campo-2', name: 'Campo 2', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
-    { id: 'seed-field-campo-3', name: 'Campo 3', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null }
-  ],
+  labors: [],
+  fields: [],
   deletedWorkers: [],
   deletedLabors: [],
   deletedFields: [],
@@ -87,7 +79,7 @@ function normalizeState(input) {
     updatedAt: worker.updatedAt || new Date().toISOString(),
     deletedAt: worker.deletedAt || null
   })) : [];
-  merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors.map(labor => ({
+  merged.labors = Array.isArray(input?.labors) ? input.labors.map(labor => ({
     id: labor.id || uid(),
     name: labor.name || '',
     active: labor.active !== false,
