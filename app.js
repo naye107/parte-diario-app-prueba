@@ -482,14 +482,7 @@ function setupNetworkState() {
 async function hydrateStateFromServer() {
   const localSnapshot = normalizeState(state);
   try {
-    const response = await fetch('./api/state', { cache: 'no-store' });
-    if (response.status === 401) {
-      lockApp('Sesion expirada. Vuelve a iniciar sesion.');
-      throw new Error('UNAUTHORIZED');
-    }
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const payload = await response.json();
-    const remoteState = normalizeState(payload?.state || payload);
+    const remoteState = await fetchServerStateWithRetry();
     serverSyncSupported = true;
     state = mergeStates(localSnapshot, remoteState);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -499,6 +492,32 @@ async function hydrateStateFromServer() {
   } finally {
     updateConnectionStatus();
   }
+}
+
+async function fetchServerStateWithRetry() {
+  let lastError = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch('./api/state', {
+        cache: 'no-store',
+        credentials: 'same-origin'
+      });
+      if (response.status === 401) {
+        lockApp('Sesion expirada. Vuelve a iniciar sesion.');
+        throw new Error('UNAUTHORIZED');
+      }
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      return normalizeState(payload?.state || payload);
+    } catch (error) {
+      lastError = error;
+      if (String(error?.message || '') === 'UNAUTHORIZED') throw error;
+      if (attempt === 0) {
+        await new Promise(resolve => setTimeout(resolve, 700));
+      }
+    }
+  }
+  throw lastError || new Error('STATE_FETCH_FAILED');
 }
 
 function queueServerSync() {
@@ -518,6 +537,7 @@ async function syncStateToServer() {
   try {
     const response = await fetch('./api/state', {
       method: 'PUT',
+      credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(state)
     });
@@ -564,7 +584,10 @@ async function syncNow() {
 async function ensureServerSyncAvailable() {
   if (serverSyncSupported || !navigator.onLine) return;
   try {
-    const health = await fetch('./api/health', { cache: 'no-store' });
+    const health = await fetch('./api/health', {
+      cache: 'no-store',
+      credentials: 'same-origin'
+    });
     if (!health.ok) throw new Error(`HTTP ${health.status}`);
     serverSyncSupported = true;
     queueServerSync();
