@@ -198,14 +198,10 @@ function bindEvents() {
     });
   }
   if (els.downloadJornalesPdfBtn) {
-    els.downloadJornalesPdfBtn.addEventListener('click', () => {
-      showToast('La descarga PDF de Jornales se definira en el siguiente paso.');
-    });
+    els.downloadJornalesPdfBtn.addEventListener('click', downloadJornalesPDF);
   }
   if (els.exportJornalesBtn) {
-    els.exportJornalesBtn.addEventListener('click', () => {
-      showToast('La exportacion CSV de Jornales se definira en el siguiente paso.');
-    });
+    els.exportJornalesBtn.addEventListener('click', exportJornalesCSV);
   }
 
   if (els.settingsForm) els.settingsForm.addEventListener('submit', saveSettings);
@@ -1537,6 +1533,65 @@ function runJornalesReport() {
   `).join('');
 }
 
+function exportJornalesCSV() {
+  if (!lastJornalesResults.length) {
+    runJornalesReport();
+  }
+  if (!lastJornalesResults.length) return showToast('No hay resultados de jornales para exportar.');
+  downloadCSV(lastJornalesResults, `jornales-por-campo-${todayISO()}.csv`);
+  showToast('Jornales exportados en CSV.');
+}
+
+function downloadJornalesPDF() {
+  if (!lastJornalesResults.length) {
+    runJornalesReport();
+  }
+  if (!lastJornalesResults.length) {
+    showToast('No hay resultados de jornales para exportar.');
+    return;
+  }
+  if (typeof window.html2pdf !== 'function') {
+    showToast('No se pudo cargar el generador de PDF.');
+    return;
+  }
+
+  const container = document.createElement('div');
+  container.innerHTML = buildJornalesPrintableBody(lastJornalesResults);
+  const printable = container.firstElementChild;
+  if (!printable) {
+    showToast('No se pudo preparar el PDF de jornales.');
+    return;
+  }
+
+  printable.style.width = '277mm';
+  printable.style.maxWidth = '277mm';
+  printable.style.margin = '0 auto';
+  document.body.appendChild(printable);
+
+  const options = {
+    margin: [5, 5, 5, 5],
+    filename: `jornales-por-campo-${todayISO()}.pdf`,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 1.6, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+    pagebreak: { mode: ['css', 'legacy'] }
+  };
+
+  window.html2pdf()
+    .set(options)
+    .from(printable)
+    .save()
+    .then(() => {
+      showToast('Jornales descargados en PDF.');
+    })
+    .catch(() => {
+      showToast('No se pudo generar el PDF de jornales.');
+    })
+    .finally(() => {
+      printable.remove();
+    });
+}
+
 function exportReportCSV() {
   if (!lastReportResults.length) {
     runReports();
@@ -1597,10 +1652,7 @@ function downloadReportPDF() {
 }
 
 function buildReportPrintableBody(rows) {
-  const basePath = window.location.pathname.endsWith('/')
-    ? window.location.pathname
-    : window.location.pathname.replace(/\/[^/]*$/, '/');
-  const logoUrl = `${window.location.origin}${basePath}icons/logo.png?v=20260312`;
+  const logoUrl = getLogoUrl();
   const generatedAt = new Date().toLocaleString('es-PE');
   const printableRows = rows.map((row, index) => `
     <tr>
@@ -1781,6 +1833,190 @@ function buildReportPrintableBody(rows) {
       </div>
     </section>
   `;
+}
+
+function buildJornalesPrintableBody(rows) {
+  const logoUrl = getLogoUrl();
+  const generatedAt = new Date().toLocaleString('es-PE');
+  const totalJornales = rows.reduce((acc, item) => acc + item.totalJornales, 0);
+  const printableRows = rows.map((row, index) => `
+    <tr>
+      <td class="center">${index + 1}</td>
+      <td>${formatDate(row.fecha)}</td>
+      <td>${escapeHtml(row.labor)}</td>
+      <td>${escapeHtml(row.campo)}</td>
+      <td class="center">${row.totalJornales}</td>
+    </tr>
+  `).join('');
+
+  return `
+    <section style="font-family: Arial, sans-serif; color: #222; padding: 0; background: white;">
+      <style>
+        .jornales-doc { border: 1.5px solid #2c4737; padding: 8px; width: 100%; }
+        .jornales-doc * { box-sizing: border-box; }
+        .jornales-doc h1, .jornales-doc h2, .jornales-doc p { margin: 0; }
+        .jornales-doc .doc-header {
+          display: grid;
+          grid-template-columns: 155px 1fr 165px;
+          align-items: center;
+          gap: 12px;
+          border-bottom: 2px solid #2c4737;
+          padding-bottom: 10px;
+          margin-bottom: 10px;
+        }
+        .jornales-doc .logo-wrap {
+          height: 56px;
+          display: flex;
+          align-items: center;
+        }
+        .jornales-doc .logo-wrap img {
+          max-width: 145px;
+          max-height: 52px;
+          object-fit: contain;
+        }
+        .jornales-doc .doc-title {
+          text-align: center;
+        }
+        .jornales-doc .doc-title h1 {
+          font-size: 19px;
+          letter-spacing: 0.04em;
+          font-weight: 800;
+        }
+        .jornales-doc .doc-title h2 {
+          font-size: 11px;
+          margin-top: 3px;
+          font-weight: 700;
+        }
+        .jornales-doc .doc-code {
+          border: 1px solid #2c4737;
+          padding: 8px 10px;
+          font-size: 10px;
+          line-height: 1.45;
+        }
+        .jornales-doc .summary-strip {
+          display: flex;
+          gap: 6px;
+          margin-bottom: 10px;
+        }
+        .jornales-doc .summary-cell {
+          border: 1px solid #2c4737;
+          min-height: 48px;
+          padding: 7px 8px;
+          flex: 0 0 auto;
+        }
+        .jornales-doc .summary-label {
+          display: block;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: #516459;
+          margin-bottom: 4px;
+          letter-spacing: 0.04em;
+        }
+        .jornales-doc .summary-value {
+          font-size: 12px;
+          font-weight: 700;
+        }
+        .jornales-doc table,
+        .jornales-doc tr,
+        .jornales-doc td,
+        .jornales-doc th {
+          page-break-inside: avoid;
+        }
+        .jornales-doc table {
+          width: 100%;
+          border-collapse: collapse;
+          table-layout: fixed;
+        }
+        .jornales-doc th, .jornales-doc td {
+          border: 1px solid #98a99e;
+          padding: 6px 6px;
+          text-align: left;
+          font-size: 12px;
+          vertical-align: top;
+          word-break: break-word;
+        }
+        .jornales-doc th {
+          background: #e7efe9;
+          color: #22372b;
+          font-size: 11px;
+          letter-spacing: 0.03em;
+        }
+        .jornales-doc .center {
+          text-align: center;
+        }
+        .jornales-doc .summary-row td {
+          font-weight: 700;
+          background: #f6faf7;
+        }
+        .jornales-doc .footer {
+          margin-top: 12px;
+          font-size: 10px;
+          color: #555;
+          text-align: right;
+        }
+      </style>
+      <div class="jornales-doc">
+        <div class="doc-header">
+          <div class="logo-wrap">
+            <img src="${escapeHtml(logoUrl)}" alt="Logo empresa">
+          </div>
+          <div class="doc-title">
+            <h1>${escapeHtml(state.settings.company)}</h1>
+            <h2>JORNALES POR CAMPO</h2>
+          </div>
+          <div class="doc-code">
+            <div><strong>Formato:</strong> Resumen jornales</div>
+            <div><strong>Version:</strong> 1.0</div>
+            <div><strong>Area:</strong> Campo</div>
+          </div>
+        </div>
+        <div class="summary-strip">
+          <div class="summary-cell" style="min-width: 220px;">
+            <span class="summary-label">Fundo / ubicacion</span>
+            <div class="summary-value">${escapeHtml(state.settings.location)}</div>
+          </div>
+          <div class="summary-cell" style="min-width: 110px;">
+            <span class="summary-label">Desde</span>
+            <div class="summary-value">${els.jornalesFrom?.value ? formatDate(els.jornalesFrom.value) : 'Todos'}</div>
+          </div>
+          <div class="summary-cell" style="min-width: 110px;">
+            <span class="summary-label">Hasta</span>
+            <div class="summary-value">${els.jornalesTo?.value ? formatDate(els.jornalesTo.value) : 'Todos'}</div>
+          </div>
+          <div class="summary-cell" style="min-width: 140px;">
+            <span class="summary-label">Total jornales</span>
+            <div class="summary-value">${totalJornales}</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 7%;">No.</th>
+              <th style="width: 18%;">FECHA</th>
+              <th style="width: 35%;">LABOR</th>
+              <th style="width: 25%;">CAMPO</th>
+              <th style="width: 15%;">TOTAL DE JORNALES</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printableRows || '<tr><td colspan="5">Sin datos</td></tr>'}
+            <tr class="summary-row">
+              <td colspan="5">Total de jornales: ${totalJornales}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="footer">Generado el ${generatedAt}</p>
+      </div>
+    </section>
+  `;
+}
+
+function getLogoUrl() {
+  const basePath = window.location.pathname.endsWith('/')
+    ? window.location.pathname
+    : window.location.pathname.replace(/\/[^/]*$/, '/');
+  return `${window.location.origin}${basePath}icons/logo.png?v=20260312`;
 }
 
 function saveSettings(event) {
