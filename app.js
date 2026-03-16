@@ -2,6 +2,7 @@ const STORAGE_KEY = 'parte-diario-santa-teresa-v1';
 const SERVER_SYNC_DEBOUNCE_MS = 700;
 const HEADER_COMPANY = 'AGRICOLA JAPURIMA S.A.';
 const HEADER_LOCATION = 'Fundo Santa Teresa Bajo - Huaura';
+const SEED_TIMESTAMP = '2026-01-01T00:00:00.000Z';
 
 const initialState = {
   settings: {
@@ -11,15 +12,18 @@ const initialState = {
   },
   workers: [],
   labors: [
-    { id: uid(), name: 'Cosecha', active: true },
-    { id: uid(), name: 'Riego', active: true },
-    { id: uid(), name: 'Poda', active: true }
+    { id: 'seed-labor-cosecha', name: 'Cosecha', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-labor-riego', name: 'Riego', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-labor-poda', name: 'Poda', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null }
   ],
   fields: [
-    { id: uid(), name: 'Campo 1', active: true },
-    { id: uid(), name: 'Campo 2', active: true },
-    { id: uid(), name: 'Campo 3', active: true }
+    { id: 'seed-field-campo-1', name: 'Campo 1', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-field-campo-2', name: 'Campo 2', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-field-campo-3', name: 'Campo 3', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null }
   ],
+  deletedWorkers: [],
+  deletedLabors: [],
+  deletedFields: [],
   parts: [],
   performances: []
 };
@@ -367,6 +371,7 @@ function closeMobileMenu() {
 }
 
 function refreshAll() {
+  state = normalizeState(state);
   saveState();
   renderDashboard();
   renderWorkers();
@@ -394,9 +399,32 @@ function normalizeState(input) {
   merged.settings = { ...merged.settings, ...(input?.settings || {}) };
   merged.settings.company = HEADER_COMPANY;
   merged.settings.location = HEADER_LOCATION;
-  merged.workers = Array.isArray(input?.workers) ? input.workers : [];
-  merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors : merged.labors;
-  merged.fields = Array.isArray(input?.fields) && input.fields.length ? input.fields : merged.fields;
+  merged.deletedWorkers = normalizeDeletedKeys(input?.deletedWorkers);
+  merged.deletedLabors = normalizeDeletedKeys(input?.deletedLabors);
+  merged.deletedFields = normalizeDeletedKeys(input?.deletedFields);
+  merged.workers = Array.isArray(input?.workers) ? input.workers.map(worker => ({
+    id: worker.id || uid(),
+    code: worker.code || '',
+    dni: worker.dni || '',
+    name: worker.name || '',
+    active: worker.active !== false,
+    updatedAt: worker.updatedAt || new Date().toISOString(),
+    deletedAt: worker.deletedAt || null
+  })) : [];
+  merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors.map(labor => ({
+    id: labor.id || uid(),
+    name: labor.name || '',
+    active: labor.active !== false,
+    updatedAt: labor.updatedAt || SEED_TIMESTAMP,
+    deletedAt: labor.deletedAt || null
+  })) : merged.labors;
+  merged.fields = Array.isArray(input?.fields) && input.fields.length ? input.fields.map(field => ({
+    id: field.id || uid(),
+    name: field.name || '',
+    active: field.active !== false,
+    updatedAt: field.updatedAt || SEED_TIMESTAMP,
+    deletedAt: field.deletedAt || null
+  })) : merged.fields;
   merged.parts = Array.isArray(input?.parts) ? input.parts.map(part => ({
     id: part.id || uid(),
     date: part.date,
@@ -424,7 +452,116 @@ function normalizeState(input) {
     jornales: Number(item.jornales) || 0,
     notes: item.notes || ''
   })) : [];
-  return merged;
+  return reconcileCatalogState(merged);
+}
+
+function normalizeDeletedKeys(items) {
+  if (!Array.isArray(items)) return [];
+  const merged = new Map();
+  items.forEach(item => {
+    const key = normalizeText(item?.key || item);
+    if (!key) return;
+    const deletedAt = item?.deletedAt || new Date().toISOString();
+    const current = merged.get(key);
+    if (!current || deletedAt >= current.deletedAt) {
+      merged.set(key, { key, deletedAt });
+    }
+  });
+  return [...merged.values()];
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function getWorkerSemanticKey(worker) {
+  return normalizeText(worker?.code) || normalizeText(worker?.dni) || normalizeText(worker?.name);
+}
+
+function getLaborSemanticKey(labor) {
+  return normalizeText(labor?.name);
+}
+
+function getFieldSemanticKey(field) {
+  return normalizeText(field?.name);
+}
+
+function getEntityRecency(item) {
+  return item?.deletedAt || item?.updatedAt || '';
+}
+
+function dedupeCatalog(items, getSemanticKey) {
+  const groups = new Map();
+  items.forEach(item => {
+    const semanticKey = getSemanticKey(item);
+    if (!semanticKey) return;
+    if (!groups.has(semanticKey)) groups.set(semanticKey, []);
+    groups.get(semanticKey).push(item);
+  });
+
+  const aliasMap = new Map();
+  const deduped = [];
+
+  groups.forEach(group => {
+    const winner = [...group].sort((a, b) => getEntityRecency(b).localeCompare(getEntityRecency(a)))[0];
+    group.forEach(item => aliasMap.set(item.id, winner.id));
+    deduped.push(winner);
+  });
+
+  return { deduped, aliasMap };
+}
+
+function findDeletedAt(deletedItems, key) {
+  return deletedItems.find(item => item.key === key)?.deletedAt || '';
+}
+
+function reconcileCatalogState(inputState) {
+  const stateToFix = structuredClone(inputState);
+  const workersResult = dedupeCatalog(stateToFix.workers, getWorkerSemanticKey);
+  const laborsResult = dedupeCatalog(stateToFix.labors, getLaborSemanticKey);
+  const fieldsResult = dedupeCatalog(stateToFix.fields, getFieldSemanticKey);
+
+  stateToFix.workers = workersResult.deduped.filter(item => {
+    const semanticKey = getWorkerSemanticKey(item);
+    const deletedAt = findDeletedAt(stateToFix.deletedWorkers, semanticKey);
+    return semanticKey && deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
+
+  stateToFix.labors = laborsResult.deduped.filter(item => {
+    const semanticKey = getLaborSemanticKey(item);
+    const deletedAt = findDeletedAt(stateToFix.deletedLabors, semanticKey);
+    return semanticKey && deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
+
+  stateToFix.fields = fieldsResult.deduped.filter(item => {
+    const semanticKey = getFieldSemanticKey(item);
+    const deletedAt = findDeletedAt(stateToFix.deletedFields, semanticKey);
+    return semanticKey && deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
+
+  stateToFix.parts = stateToFix.parts.map(part => ({
+    ...part,
+    rows: part.rows.map(row => ({
+      ...row,
+      workerId: workersResult.aliasMap.get(row.workerId) || row.workerId,
+      morningLaborId: laborsResult.aliasMap.get(row.morningLaborId) || row.morningLaborId,
+      morningFieldId: fieldsResult.aliasMap.get(row.morningFieldId) || row.morningFieldId,
+      afternoonLaborId: laborsResult.aliasMap.get(row.afternoonLaborId) || row.afternoonLaborId,
+      afternoonFieldId: fieldsResult.aliasMap.get(row.afternoonFieldId) || row.afternoonFieldId
+    }))
+  }));
+
+  stateToFix.performances = stateToFix.performances.map(item => ({
+    ...item,
+    workerId: workersResult.aliasMap.get(item.workerId) || item.workerId,
+    laborId: laborsResult.aliasMap.get(item.laborId) || item.laborId,
+    fieldId: fieldsResult.aliasMap.get(item.fieldId) || item.fieldId
+  }));
+  return stateToFix;
 }
 
 function mergeByKey(localItems, remoteItems, getKey) {
@@ -443,9 +580,27 @@ function mergeStates(localState, remoteState) {
     workers: mergeByKey(remote.workers, local.workers, item => item.id),
     labors: mergeByKey(remote.labors, local.labors, item => item.id),
     fields: mergeByKey(remote.fields, local.fields, item => item.id),
+    deletedWorkers: mergeByKey(remote.deletedWorkers, local.deletedWorkers, item => item.key),
+    deletedLabors: mergeByKey(remote.deletedLabors, local.deletedLabors, item => item.key),
+    deletedFields: mergeByKey(remote.deletedFields, local.deletedFields, item => item.key),
     parts: mergeByKey(remote.parts, local.parts, item => item.id),
     performances: mergeByKey(remote.performances, local.performances, item => item.id)
   });
+}
+
+function removeDeletedKey(collectionName, semanticKey) {
+  state[collectionName] = state[collectionName].filter(item => item.key !== semanticKey);
+}
+
+function markEntityDeleted(collectionName, deletedCollectionName, item, getSemanticKey) {
+  const semanticKey = getSemanticKey(item);
+  const deletedAt = new Date().toISOString();
+  state[collectionName] = state[collectionName].filter(entry => getSemanticKey(entry) !== semanticKey);
+  state[deletedCollectionName] = mergeByKey(
+    state[deletedCollectionName],
+    [{ key: semanticKey, deletedAt }],
+    entry => entry.key
+  );
 }
 
 function saveState() {
@@ -1299,14 +1454,18 @@ function renderWorkers() {
 
 function saveWorker(event) {
   event.preventDefault();
+  const updatedAt = new Date().toISOString();
   const payload = {
     id: els.workerId.value || uid(),
     code: els.workerCode.value.trim(),
     dni: els.workerDni.value.trim(),
     name: els.workerName.value.trim(),
-    active: els.workerActive.checked
+    active: els.workerActive.checked,
+    updatedAt,
+    deletedAt: null
   };
   if (!payload.name) return showToast('Ingresa el nombre del trabajador.');
+  removeDeletedKey('deletedWorkers', getWorkerSemanticKey(payload));
 
   const existingIndex = state.workers.findIndex(item => item.id === payload.id);
   if (existingIndex >= 0) state.workers[existingIndex] = payload;
@@ -1343,6 +1502,7 @@ function onWorkersTableClick(event) {
 
   if (action === 'toggle') {
     item.active = !item.active;
+    item.updatedAt = new Date().toISOString();
     refreshAll();
     showToast(`Trabajador ${item.active ? 'activado' : 'inactivado'}.`);
   }
@@ -1350,7 +1510,7 @@ function onWorkersTableClick(event) {
   if (action === 'delete') {
     if (isEntityUsed('workers', item.id)) return showToast('Ese trabajador ya se uso en un parte. Inactivalo en lugar de eliminarlo.');
     if (!window.confirm(`Eliminar a ${item.name}?`)) return;
-    state.workers = state.workers.filter(entry => entry.id !== item.id);
+    markEntityDeleted('workers', 'deletedWorkers', item, getWorkerSemanticKey);
     refreshAll();
     showToast('Trabajador eliminado.');
   }
@@ -1382,12 +1542,16 @@ function renderLabors() {
 
 function saveLabor(event) {
   event.preventDefault();
+  const updatedAt = new Date().toISOString();
   const payload = {
     id: els.laborId.value || uid(),
     name: els.laborName.value.trim(),
-    active: els.laborActive.checked
+    active: els.laborActive.checked,
+    updatedAt,
+    deletedAt: null
   };
   if (!payload.name) return showToast('Ingresa el nombre de la labor.');
+  removeDeletedKey('deletedLabors', getLaborSemanticKey(payload));
   const existingIndex = state.labors.findIndex(item => item.id === payload.id);
   if (existingIndex >= 0) state.labors[existingIndex] = payload;
   else state.labors.push(payload);
@@ -1420,6 +1584,7 @@ function onLaborsTableClick(event) {
 
   if (action === 'toggle') {
     item.active = !item.active;
+    item.updatedAt = new Date().toISOString();
     refreshAll();
     showToast(`Labor ${item.active ? 'activada' : 'inactivada'}.`);
   }
@@ -1427,7 +1592,7 @@ function onLaborsTableClick(event) {
   if (action === 'delete') {
     if (isEntityUsed('labors', item.id)) return showToast('Esa labor ya se uso en un parte. Inactivala en lugar de eliminarla.');
     if (!window.confirm(`Eliminar la labor ${item.name}?`)) return;
-    state.labors = state.labors.filter(entry => entry.id !== item.id);
+    markEntityDeleted('labors', 'deletedLabors', item, getLaborSemanticKey);
     refreshAll();
     showToast('Labor eliminada.');
   }
@@ -1459,12 +1624,16 @@ function renderFields() {
 
 function saveField(event) {
   event.preventDefault();
+  const updatedAt = new Date().toISOString();
   const payload = {
     id: els.fieldId.value || uid(),
     name: els.fieldName.value.trim(),
-    active: els.fieldActive.checked
+    active: els.fieldActive.checked,
+    updatedAt,
+    deletedAt: null
   };
   if (!payload.name) return showToast('Ingresa el nombre del campo.');
+  removeDeletedKey('deletedFields', getFieldSemanticKey(payload));
   const existingIndex = state.fields.findIndex(item => item.id === payload.id);
   if (existingIndex >= 0) state.fields[existingIndex] = payload;
   else state.fields.push(payload);
@@ -1497,6 +1666,7 @@ function onFieldsTableClick(event) {
 
   if (action === 'toggle') {
     item.active = !item.active;
+    item.updatedAt = new Date().toISOString();
     refreshAll();
     showToast(`Campo ${item.active ? 'activado' : 'inactivado'}.`);
   }
@@ -1504,7 +1674,7 @@ function onFieldsTableClick(event) {
   if (action === 'delete') {
     if (isEntityUsed('fields', item.id)) return showToast('Ese campo ya se uso en un parte. Inactivalo en lugar de eliminarlo.');
     if (!window.confirm(`Eliminar el campo ${item.name}?`)) return;
-    state.fields = state.fields.filter(entry => entry.id !== item.id);
+    markEntityDeleted('fields', 'deletedFields', item, getFieldSemanticKey);
     refreshAll();
     showToast('Campo eliminado.');
   }

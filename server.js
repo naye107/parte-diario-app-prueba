@@ -13,6 +13,7 @@ const SESSION_COOKIE = 'pd_session';
 const SESSION_TTL_MS = 1000 * 60 * 60 * 12; // 12 horas
 const HEADER_COMPANY = 'AGRICOLA JAPURIMA S.A.';
 const HEADER_LOCATION = 'Fundo Santa Teresa Bajo - Huaura';
+const SEED_TIMESTAMP = '2026-01-01T00:00:00.000Z';
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
@@ -40,15 +41,18 @@ const DEFAULT_STATE = {
   },
   workers: [],
   labors: [
-    { id: uid(), name: 'Cosecha', active: true },
-    { id: uid(), name: 'Riego', active: true },
-    { id: uid(), name: 'Poda', active: true }
+    { id: 'seed-labor-cosecha', name: 'Cosecha', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-labor-riego', name: 'Riego', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-labor-poda', name: 'Poda', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null }
   ],
   fields: [
-    { id: uid(), name: 'Campo 1', active: true },
-    { id: uid(), name: 'Campo 2', active: true },
-    { id: uid(), name: 'Campo 3', active: true }
+    { id: 'seed-field-campo-1', name: 'Campo 1', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-field-campo-2', name: 'Campo 2', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null },
+    { id: 'seed-field-campo-3', name: 'Campo 3', active: true, updatedAt: SEED_TIMESTAMP, deletedAt: null }
   ],
+  deletedWorkers: [],
+  deletedLabors: [],
+  deletedFields: [],
   parts: [],
   performances: []
 };
@@ -71,9 +75,32 @@ function normalizeState(input) {
   merged.settings = { ...merged.settings, ...(input?.settings || {}) };
   merged.settings.company = HEADER_COMPANY;
   merged.settings.location = HEADER_LOCATION;
-  merged.workers = Array.isArray(input?.workers) ? input.workers : [];
-  merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors : merged.labors;
-  merged.fields = Array.isArray(input?.fields) && input.fields.length ? input.fields : merged.fields;
+  merged.deletedWorkers = normalizeDeletedKeys(input?.deletedWorkers);
+  merged.deletedLabors = normalizeDeletedKeys(input?.deletedLabors);
+  merged.deletedFields = normalizeDeletedKeys(input?.deletedFields);
+  merged.workers = Array.isArray(input?.workers) ? input.workers.map(worker => ({
+    id: worker.id || uid(),
+    code: worker.code || '',
+    dni: worker.dni || '',
+    name: worker.name || '',
+    active: worker.active !== false,
+    updatedAt: worker.updatedAt || new Date().toISOString(),
+    deletedAt: worker.deletedAt || null
+  })) : [];
+  merged.labors = Array.isArray(input?.labors) && input.labors.length ? input.labors.map(labor => ({
+    id: labor.id || uid(),
+    name: labor.name || '',
+    active: labor.active !== false,
+    updatedAt: labor.updatedAt || SEED_TIMESTAMP,
+    deletedAt: labor.deletedAt || null
+  })) : merged.labors;
+  merged.fields = Array.isArray(input?.fields) && input.fields.length ? input.fields.map(field => ({
+    id: field.id || uid(),
+    name: field.name || '',
+    active: field.active !== false,
+    updatedAt: field.updatedAt || SEED_TIMESTAMP,
+    deletedAt: field.deletedAt || null
+  })) : merged.fields;
   merged.parts = Array.isArray(input?.parts) ? input.parts.map(part => ({
     id: part.id || uid(),
     date: part.date || '',
@@ -101,7 +128,117 @@ function normalizeState(input) {
     jornales: Number(item.jornales) || 0,
     notes: item.notes || ''
   })) : [];
-  return merged;
+  return reconcileCatalogState(merged);
+}
+
+function normalizeDeletedKeys(items) {
+  if (!Array.isArray(items)) return [];
+  const merged = new Map();
+  items.forEach(item => {
+    const key = normalizeText(item?.key || item);
+    if (!key) return;
+    const deletedAt = item?.deletedAt || new Date().toISOString();
+    const current = merged.get(key);
+    if (!current || deletedAt >= current.deletedAt) {
+      merged.set(key, { key, deletedAt });
+    }
+  });
+  return [...merged.values()];
+}
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+}
+
+function getWorkerSemanticKey(worker) {
+  return normalizeText(worker?.code) || normalizeText(worker?.dni) || normalizeText(worker?.name);
+}
+
+function getLaborSemanticKey(labor) {
+  return normalizeText(labor?.name);
+}
+
+function getFieldSemanticKey(field) {
+  return normalizeText(field?.name);
+}
+
+function getEntityRecency(item) {
+  return item?.deletedAt || item?.updatedAt || '';
+}
+
+function dedupeCatalog(items, getSemanticKey) {
+  const groups = new Map();
+  items.forEach(item => {
+    const semanticKey = getSemanticKey(item);
+    if (!semanticKey) return;
+    if (!groups.has(semanticKey)) groups.set(semanticKey, []);
+    groups.get(semanticKey).push(item);
+  });
+
+  const aliasMap = new Map();
+  const deduped = [];
+
+  groups.forEach(group => {
+    const winner = [...group].sort((a, b) => getEntityRecency(b).localeCompare(getEntityRecency(a)))[0];
+    group.forEach(item => aliasMap.set(item.id, winner.id));
+    deduped.push(winner);
+  });
+
+  return { deduped, aliasMap };
+}
+
+function findDeletedAt(deletedItems, key) {
+  return deletedItems.find(item => item.key === key)?.deletedAt || '';
+}
+
+function reconcileCatalogState(inputState) {
+  const stateToFix = structuredClone(inputState);
+  const workersResult = dedupeCatalog(stateToFix.workers, getWorkerSemanticKey);
+  const laborsResult = dedupeCatalog(stateToFix.labors, getLaborSemanticKey);
+  const fieldsResult = dedupeCatalog(stateToFix.fields, getFieldSemanticKey);
+
+  stateToFix.workers = workersResult.deduped.filter(item => {
+    const semanticKey = getWorkerSemanticKey(item);
+    const deletedAt = findDeletedAt(stateToFix.deletedWorkers, semanticKey);
+    return semanticKey && deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
+
+  stateToFix.labors = laborsResult.deduped.filter(item => {
+    const semanticKey = getLaborSemanticKey(item);
+    const deletedAt = findDeletedAt(stateToFix.deletedLabors, semanticKey);
+    return semanticKey && deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
+
+  stateToFix.fields = fieldsResult.deduped.filter(item => {
+    const semanticKey = getFieldSemanticKey(item);
+    const deletedAt = findDeletedAt(stateToFix.deletedFields, semanticKey);
+    return semanticKey && deletedAt < (item.updatedAt || '') && !item.deletedAt;
+  });
+
+  stateToFix.parts = stateToFix.parts.map(part => ({
+    ...part,
+    rows: part.rows.map(row => ({
+      ...row,
+      workerId: workersResult.aliasMap.get(row.workerId) || row.workerId,
+      morningLaborId: laborsResult.aliasMap.get(row.morningLaborId) || row.morningLaborId,
+      morningFieldId: fieldsResult.aliasMap.get(row.morningFieldId) || row.morningFieldId,
+      afternoonLaborId: laborsResult.aliasMap.get(row.afternoonLaborId) || row.afternoonLaborId,
+      afternoonFieldId: fieldsResult.aliasMap.get(row.afternoonFieldId) || row.afternoonFieldId
+    }))
+  }));
+
+  stateToFix.performances = stateToFix.performances.map(item => ({
+    ...item,
+    workerId: workersResult.aliasMap.get(item.workerId) || item.workerId,
+    laborId: laborsResult.aliasMap.get(item.laborId) || item.laborId,
+    fieldId: fieldsResult.aliasMap.get(item.fieldId) || item.fieldId
+  }));
+
+  return stateToFix;
 }
 
 function mergeByKey(remoteItems, incomingItems, getKey) {
@@ -120,6 +257,9 @@ function mergeStates(baseState, incomingState) {
     workers: mergeByKey(remote.workers, incoming.workers, item => item.id),
     labors: mergeByKey(remote.labors, incoming.labors, item => item.id),
     fields: mergeByKey(remote.fields, incoming.fields, item => item.id),
+    deletedWorkers: mergeByKey(remote.deletedWorkers, incoming.deletedWorkers, item => item.key),
+    deletedLabors: mergeByKey(remote.deletedLabors, incoming.deletedLabors, item => item.key),
+    deletedFields: mergeByKey(remote.deletedFields, incoming.deletedFields, item => item.key),
     parts: mergeByKey(remote.parts, incoming.parts, item => item.id),
     performances: mergeByKey(remote.performances, incoming.performances, item => item.id)
   });
