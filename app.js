@@ -130,7 +130,6 @@ const els = {
   performanceQuantity: document.getElementById('performanceQuantity'),
   performanceUnit: document.getElementById('performanceUnit'),
   performanceJornales: document.getElementById('performanceJornales'),
-  performanceNotes: document.getElementById('performanceNotes'),
   cancelPerformanceEdit: document.getElementById('cancelPerformanceEdit'),
   performanceFilters: document.getElementById('performanceFilters'),
   performanceFrom: document.getElementById('performanceFrom'),
@@ -1978,7 +1977,7 @@ function savePerformance(event) {
     quantity: Number(els.performanceQuantity.value),
     unit: els.performanceUnit.value.trim(),
     jornales: Number(els.performanceJornales.value),
-    notes: els.performanceNotes.value.trim(),
+    notes: '',
     updatedAt,
     deletedAt: null
   };
@@ -2021,7 +2020,6 @@ function onPerformanceTableClick(event) {
     els.performanceQuantity.value = item.quantity ?? '';
     els.performanceUnit.value = item.unit || '';
     els.performanceJornales.value = item.jornales ?? '';
-    els.performanceNotes.value = item.notes || '';
     els.performanceFormTitle.textContent = 'Editar rendimiento';
     switchView('rendimiento');
   }
