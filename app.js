@@ -1649,11 +1649,12 @@ function runPerformanceReport() {
   const summaryMap = new Map();
 
   lastPerformanceResults.forEach(item => {
-    const key = [item.campo, item.labor, item.unit].join('||');
+    const normalizedUnit = normalizeUnit(item.unit);
+    const key = [item.campo, item.labor, normalizedUnit].join('||');
     const current = summaryMap.get(key) || {
       campo: item.campo,
       labor: item.labor,
-      unidad: item.unit,
+      unidad: normalizedUnit,
       totalCantidad: 0,
       totalJornales: 0,
       rendimiento: 0
@@ -2615,6 +2616,32 @@ function formatDecimal(value) {
     minimumFractionDigits: number % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2
   });
+}
+
+function normalizeUnit(value) {
+  const unit = String(value || '').trim().toLowerCase();
+  if (!unit) return '';
+
+  const aliases = {
+    planta: 'plantas',
+    plantas: 'plantas',
+    kilo: 'kg',
+    kilos: 'kg',
+    kilogramo: 'kg',
+    kilogramos: 'kg',
+    kg: 'kg',
+    jaba: 'jabas',
+    jabas: 'jabas',
+    metro: 'm',
+    metros: 'm',
+    'm2': 'm2',
+    mt2: 'm2',
+    hectarea: 'ha',
+    hectareas: 'ha',
+    ha: 'ha'
+  };
+
+  return aliases[unit] || unit;
 }
 
 function downloadCSV(rows, fileName) {
