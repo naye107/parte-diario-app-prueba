@@ -834,6 +834,37 @@ body:not(.auth-locked) .auth-overlay {
     max-width: max-content;
   }
 
+  #view-reportes,
+  #view-jornales,
+  #view-rendimiento,
+  #view-reportes > .cards-grid,
+  #view-jornales > .cards-grid,
+  #view-rendimiento > .cards-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
+    align-content: start;
+  }
+
+  #view-reportes .card,
+  #view-jornales .card,
+  #view-rendimiento .card {
+    width: 100%;
+    padding: 0.95rem;
+  }
+
+  #view-reportes .section-title-row,
+  #view-jornales .section-title-row,
+  #view-rendimiento .section-title-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.55rem;
+  }
+
+  #view-rendimiento .dashboard-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
   button,
   .file-input-label {
     width: 100%;
