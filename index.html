@@ -344,9 +344,123 @@
       </section>
 
       <section class="view" id="view-rendimiento">
-        <article class="card module-placeholder-card">
-          <h3>Rendimiento</h3>
-        </article>
+        <div class="cards-grid worker-layout">
+          <article class="card">
+            <h3 id="performanceFormTitle">Nuevo rendimiento</h3>
+            <form id="performanceForm" class="stack-form worker-form-grid">
+              <input type="hidden" id="performanceId">
+              <label>
+                <span>Fecha</span>
+                <input type="date" id="performanceDate" required>
+              </label>
+              <label>
+                <span>Trabajador</span>
+                <select id="performanceWorker" required></select>
+              </label>
+              <label>
+                <span>Labor</span>
+                <select id="performanceLabor" required></select>
+              </label>
+              <label>
+                <span>Campo</span>
+                <select id="performanceField" required></select>
+              </label>
+              <label>
+                <span>Cantidad realizada</span>
+                <input type="number" id="performanceQuantity" min="0" step="0.01" required>
+              </label>
+              <label>
+                <span>Unidad</span>
+                <input type="text" id="performanceUnit" placeholder="kg, plantas, jabas, m2..." required>
+              </label>
+              <label>
+                <span>Jornales</span>
+                <input type="number" id="performanceJornales" min="0.01" step="0.01" required>
+              </label>
+              <label class="full">
+                <span>Observacion</span>
+                <textarea id="performanceNotes" placeholder="Opcional"></textarea>
+              </label>
+              <div class="button-row">
+                <button type="submit">Guardar rendimiento</button>
+                <button type="button" class="secondary-btn" id="cancelPerformanceEdit">Cancelar</button>
+              </div>
+            </form>
+          </article>
+
+          <article class="card">
+            <h3>Filtros de rendimiento</h3>
+            <form id="performanceFilters" class="toolbar-grid reports-grid">
+              <label>
+                <span>Desde</span>
+                <input type="date" id="performanceFrom">
+              </label>
+              <label>
+                <span>Hasta</span>
+                <input type="date" id="performanceTo">
+              </label>
+              <label>
+                <span>Trabajador</span>
+                <select id="performanceFilterWorker"></select>
+              </label>
+              <label>
+                <span>Labor</span>
+                <select id="performanceFilterLabor"></select>
+              </label>
+              <label>
+                <span>Campo</span>
+                <select id="performanceFilterField"></select>
+              </label>
+              <div class="button-row align-end report-actions">
+                <button type="submit">Buscar</button>
+              </div>
+            </form>
+          </article>
+
+          <div class="cards-grid dashboard-stats-grid">
+            <article class="card stat-card">
+              <span class="stat-label">Total jornales</span>
+              <strong class="stat-value" id="performanceTotalJornales">0</strong>
+            </article>
+            <article class="card stat-card">
+              <span class="stat-label">Total cantidad</span>
+              <strong class="stat-value" id="performanceTotalQuantity">0</strong>
+            </article>
+            <article class="card stat-card">
+              <span class="stat-label">Rendimiento promedio</span>
+              <strong class="stat-value performance-average" id="performanceAverage">0</strong>
+            </article>
+            <article class="card stat-card">
+              <span class="stat-label">Registros</span>
+              <strong class="stat-value" id="performanceCount">0</strong>
+            </article>
+          </div>
+
+          <article class="card">
+            <div class="section-title-row">
+              <h3>Resultados</h3>
+              <span class="badge" id="performanceCountBadge">0 registros</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Trabajador</th>
+                    <th>Labor</th>
+                    <th>Campo</th>
+                    <th>Cantidad</th>
+                    <th>Unidad</th>
+                    <th>Jornales</th>
+                    <th>Rendimiento</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="performanceTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </div>
       </section>
     </main>
   </div>

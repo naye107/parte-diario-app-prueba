@@ -20,7 +20,8 @@ const initialState = {
     { id: uid(), name: 'Campo 2', active: true },
     { id: uid(), name: 'Campo 3', active: true }
   ],
-  parts: []
+  parts: [],
+  performances: []
 };
 
 let state = structuredClone(initialState);
@@ -28,6 +29,7 @@ let currentView = 'dashboard';
 let currentPartId = null;
 let lastReportResults = [];
 let lastJornalesResults = [];
+let lastPerformanceResults = [];
 let toastTimer = null;
 let serverSyncSupported = false;
 let serverSyncInFlight = false;
@@ -118,6 +120,31 @@ const els = {
   jornalesCountBadge: document.getElementById('jornalesCountBadge'),
   jornalesTotalSummary: document.getElementById('jornalesTotalSummary'),
 
+  performanceForm: document.getElementById('performanceForm'),
+  performanceFormTitle: document.getElementById('performanceFormTitle'),
+  performanceId: document.getElementById('performanceId'),
+  performanceDate: document.getElementById('performanceDate'),
+  performanceWorker: document.getElementById('performanceWorker'),
+  performanceLabor: document.getElementById('performanceLabor'),
+  performanceField: document.getElementById('performanceField'),
+  performanceQuantity: document.getElementById('performanceQuantity'),
+  performanceUnit: document.getElementById('performanceUnit'),
+  performanceJornales: document.getElementById('performanceJornales'),
+  performanceNotes: document.getElementById('performanceNotes'),
+  cancelPerformanceEdit: document.getElementById('cancelPerformanceEdit'),
+  performanceFilters: document.getElementById('performanceFilters'),
+  performanceFrom: document.getElementById('performanceFrom'),
+  performanceTo: document.getElementById('performanceTo'),
+  performanceFilterWorker: document.getElementById('performanceFilterWorker'),
+  performanceFilterLabor: document.getElementById('performanceFilterLabor'),
+  performanceFilterField: document.getElementById('performanceFilterField'),
+  performanceTotalJornales: document.getElementById('performanceTotalJornales'),
+  performanceTotalQuantity: document.getElementById('performanceTotalQuantity'),
+  performanceAverage: document.getElementById('performanceAverage'),
+  performanceCount: document.getElementById('performanceCount'),
+  performanceCountBadge: document.getElementById('performanceCountBadge'),
+  performanceTableBody: document.getElementById('performanceTableBody'),
+
   settingsForm: document.getElementById('settingsForm'),
   settingsOwner: document.getElementById('settingsOwner'),
   exportBackupBtn: document.getElementById('exportBackupBtn'),
@@ -202,6 +229,18 @@ function bindEvents() {
   }
   if (els.exportJornalesBtn) {
     els.exportJornalesBtn.addEventListener('click', exportJornalesCSV);
+  }
+
+  if (els.performanceForm) els.performanceForm.addEventListener('submit', savePerformance);
+  if (els.cancelPerformanceEdit) els.cancelPerformanceEdit.addEventListener('click', resetPerformanceForm);
+  if (els.performanceFilters) {
+    els.performanceFilters.addEventListener('submit', event => {
+      event.preventDefault();
+      runPerformanceReport();
+    });
+  }
+  if (els.performanceTableBody) {
+    els.performanceTableBody.addEventListener('click', onPerformanceTableClick);
   }
 
   if (els.settingsForm) els.settingsForm.addEventListener('submit', saveSettings);
@@ -305,6 +344,7 @@ function switchView(viewName) {
   els.views.forEach(view => view.classList.toggle('active', view.id === `view-${viewName}`));
   if (viewName === 'reportes') runReports();
   if (viewName === 'jornales') runJornalesReport();
+  if (viewName === 'rendimiento') runPerformanceReport();
 }
 
 function toggleMobileMenu() {
@@ -325,6 +365,7 @@ function refreshAll() {
   renderFields();
   renderReportsFilters();
   renderCurrentPart();
+  renderPerformanceModule();
 }
 
 function loadState() {
@@ -362,6 +403,17 @@ function normalizeState(input) {
       afternoonFieldId: row.afternoonFieldId || '',
       notes: row.notes || ''
     })) : []
+  })) : [];
+  merged.performances = Array.isArray(input?.performances) ? input.performances.map(item => ({
+    id: item.id || uid(),
+    date: item.date || todayISO(),
+    workerId: item.workerId || '',
+    laborId: item.laborId || '',
+    fieldId: item.fieldId || '',
+    quantity: Number(item.quantity) || 0,
+    unit: item.unit || '',
+    jornales: Number(item.jornales) || 0,
+    notes: item.notes || ''
   })) : [];
   return merged;
 }
@@ -494,7 +546,7 @@ function updateConnectionStatus() {
 function stateDataScore(snapshot) {
   const safe = normalizeState(snapshot);
   const rowsCount = safe.parts.reduce((acc, part) => acc + part.rows.length, 0);
-  return (safe.workers.length * 5) + (safe.parts.length * 10) + rowsCount;
+  return (safe.workers.length * 5) + (safe.parts.length * 10) + rowsCount + (safe.performances.length * 4);
 }
 
 function registerServiceWorker() {
@@ -1410,6 +1462,21 @@ function renderReportsFilters() {
   if (els.jornalesWorker) els.jornalesWorker.innerHTML = workerOptions;
   if (els.jornalesLabor) els.jornalesLabor.innerHTML = laborOptions;
   if (els.jornalesField) els.jornalesField.innerHTML = fieldOptions;
+  if (els.performanceFilterWorker) els.performanceFilterWorker.innerHTML = workerOptions;
+  if (els.performanceFilterLabor) els.performanceFilterLabor.innerHTML = laborOptions;
+  if (els.performanceFilterField) els.performanceFilterField.innerHTML = fieldOptions;
+  if (els.performanceWorker) els.performanceWorker.innerHTML = `<option value="">Selecciona</option>${state.workers
+    .filter(item => item.active)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
+  if (els.performanceLabor) els.performanceLabor.innerHTML = `<option value="">Selecciona</option>${state.labors
+    .filter(item => item.active)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
+  if (els.performanceField) els.performanceField.innerHTML = `<option value="">Selecciona</option>${state.fields
+    .filter(item => item.active)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
 }
 
 function runReports() {
@@ -1531,6 +1598,141 @@ function runJornalesReport() {
       <td>${item.totalJornales}</td>
     </tr>
   `).join('');
+}
+
+function renderPerformanceModule() {
+  if (!els.performanceDate) return;
+  if (!els.performanceDate.value) els.performanceDate.value = todayISO();
+  runPerformanceReport();
+}
+
+function runPerformanceReport() {
+  if (!els.performanceTableBody) return;
+
+  const filters = {
+    from: els.performanceFrom?.value || '',
+    to: els.performanceTo?.value || '',
+    workerId: els.performanceFilterWorker?.value || '',
+    laborId: els.performanceFilterLabor?.value || '',
+    fieldId: els.performanceFilterField?.value || ''
+  };
+
+  lastPerformanceResults = [...state.performances]
+    .filter(item => {
+      if (filters.from && item.date < filters.from) return false;
+      if (filters.to && item.date > filters.to) return false;
+      if (filters.workerId && item.workerId !== filters.workerId) return false;
+      if (filters.laborId && item.laborId !== filters.laborId) return false;
+      if (filters.fieldId && item.fieldId !== filters.fieldId) return false;
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .map(item => ({
+      ...item,
+      trabajador: getNameById(state.workers, item.workerId, 'name'),
+      labor: getNameById(state.labors, item.laborId, 'name'),
+      campo: getNameById(state.fields, item.fieldId, 'name'),
+      rendimiento: item.jornales > 0 ? (item.quantity / item.jornales) : 0
+    }));
+
+  const totalJornales = lastPerformanceResults.reduce((acc, item) => acc + item.jornales, 0);
+  const totalQuantity = lastPerformanceResults.reduce((acc, item) => acc + item.quantity, 0);
+  const average = totalJornales > 0 ? (totalQuantity / totalJornales) : 0;
+  const averageUnit = lastPerformanceResults[0]?.unit || '';
+
+  if (els.performanceTotalJornales) els.performanceTotalJornales.textContent = formatDecimal(totalJornales);
+  if (els.performanceTotalQuantity) els.performanceTotalQuantity.textContent = formatDecimal(totalQuantity);
+  if (els.performanceAverage) els.performanceAverage.textContent = `${formatDecimal(average)}${averageUnit ? ` ${averageUnit}/jornal` : ''}`;
+  if (els.performanceCount) els.performanceCount.textContent = String(lastPerformanceResults.length);
+  if (els.performanceCountBadge) els.performanceCountBadge.textContent = `${lastPerformanceResults.length} registros`;
+
+  if (!lastPerformanceResults.length) {
+    els.performanceTableBody.innerHTML = '<tr><td colspan="9">No se encontraron resultados.</td></tr>';
+    return;
+  }
+
+  els.performanceTableBody.innerHTML = lastPerformanceResults.map(item => `
+    <tr>
+      <td class="no-break">${formatDate(item.date)}</td>
+      <td>${escapeHtml(item.trabajador)}</td>
+      <td>${escapeHtml(item.labor)}</td>
+      <td>${escapeHtml(item.campo)}</td>
+      <td>${formatDecimal(item.quantity)}</td>
+      <td>${escapeHtml(item.unit)}</td>
+      <td>${formatDecimal(item.jornales)}</td>
+      <td>${formatDecimal(item.rendimiento)} ${escapeHtml(item.unit)}/jornal</td>
+      <td>
+        <div class="mini-actions">
+          <button class="secondary-btn mini-btn" data-action="edit" data-id="${item.id}">Editar</button>
+          <button class="secondary-btn mini-btn danger-outline" data-action="delete" data-id="${item.id}">Eliminar</button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function savePerformance(event) {
+  event.preventDefault();
+  const payload = {
+    id: els.performanceId.value || uid(),
+    date: els.performanceDate.value || todayISO(),
+    workerId: els.performanceWorker.value,
+    laborId: els.performanceLabor.value,
+    fieldId: els.performanceField.value,
+    quantity: Number(els.performanceQuantity.value),
+    unit: els.performanceUnit.value.trim(),
+    jornales: Number(els.performanceJornales.value),
+    notes: els.performanceNotes.value.trim()
+  };
+
+  if (!payload.workerId || !payload.laborId || !payload.fieldId) return showToast('Completa trabajador, labor y campo.');
+  if (!payload.quantity || payload.quantity <= 0) return showToast('Ingresa una cantidad valida.');
+  if (!payload.unit) return showToast('Ingresa la unidad.');
+  if (!payload.jornales || payload.jornales <= 0) return showToast('Ingresa jornales validos.');
+
+  const existingIndex = state.performances.findIndex(item => item.id === payload.id);
+  if (existingIndex >= 0) state.performances[existingIndex] = payload;
+  else state.performances.push(payload);
+
+  resetPerformanceForm();
+  refreshAll();
+  showToast('Rendimiento guardado.');
+}
+
+function resetPerformanceForm() {
+  if (!els.performanceForm) return;
+  els.performanceForm.reset();
+  els.performanceId.value = '';
+  els.performanceDate.value = todayISO();
+  els.performanceFormTitle.textContent = 'Nuevo rendimiento';
+}
+
+function onPerformanceTableClick(event) {
+  const btn = event.target.closest('[data-action]');
+  if (!btn) return;
+  const item = state.performances.find(entry => entry.id === btn.dataset.id);
+  if (!item) return;
+
+  if (btn.dataset.action === 'edit') {
+    els.performanceId.value = item.id;
+    els.performanceDate.value = item.date || todayISO();
+    els.performanceWorker.value = item.workerId || '';
+    els.performanceLabor.value = item.laborId || '';
+    els.performanceField.value = item.fieldId || '';
+    els.performanceQuantity.value = item.quantity ?? '';
+    els.performanceUnit.value = item.unit || '';
+    els.performanceJornales.value = item.jornales ?? '';
+    els.performanceNotes.value = item.notes || '';
+    els.performanceFormTitle.textContent = 'Editar rendimiento';
+    switchView('rendimiento');
+  }
+
+  if (btn.dataset.action === 'delete') {
+    if (!window.confirm('Eliminar este registro de rendimiento?')) return;
+    state.performances = state.performances.filter(entry => entry.id !== item.id);
+    refreshAll();
+    showToast('Rendimiento eliminado.');
+  }
 }
 
 function exportJornalesCSV() {
@@ -2078,6 +2280,14 @@ function resetAllData() {
 
 function getNameById(collection, id, labelKey) {
   return collection.find(item => item.id === id)?.[labelKey] || '';
+}
+
+function formatDecimal(value) {
+  const number = Number(value) || 0;
+  return number.toLocaleString('es-PE', {
+    minimumFractionDigits: number % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function downloadCSV(rows, fileName) {
