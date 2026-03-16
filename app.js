@@ -105,6 +105,15 @@ const els = {
   reportsTableBody: document.getElementById('reportsTableBody'),
   reportCountBadge: document.getElementById('reportCountBadge'),
 
+  jornalesFilters: document.getElementById('jornalesFilters'),
+  jornalesFrom: document.getElementById('jornalesFrom'),
+  jornalesTo: document.getElementById('jornalesTo'),
+  jornalesWorker: document.getElementById('jornalesWorker'),
+  jornalesLabor: document.getElementById('jornalesLabor'),
+  jornalesField: document.getElementById('jornalesField'),
+  downloadJornalesPdfBtn: document.getElementById('downloadJornalesPdfBtn'),
+  exportJornalesBtn: document.getElementById('exportJornalesBtn'),
+
   settingsForm: document.getElementById('settingsForm'),
   settingsOwner: document.getElementById('settingsOwner'),
   exportBackupBtn: document.getElementById('exportBackupBtn'),
@@ -177,6 +186,23 @@ function bindEvents() {
   });
   els.downloadReportPdfBtn.addEventListener('click', downloadReportPDF);
   els.exportReportBtn.addEventListener('click', exportReportCSV);
+
+  if (els.jornalesFilters) {
+    els.jornalesFilters.addEventListener('submit', event => {
+      event.preventDefault();
+      showToast('El modulo Jornales aun esta en preparacion.');
+    });
+  }
+  if (els.downloadJornalesPdfBtn) {
+    els.downloadJornalesPdfBtn.addEventListener('click', () => {
+      showToast('La descarga PDF de Jornales se definira en el siguiente paso.');
+    });
+  }
+  if (els.exportJornalesBtn) {
+    els.exportJornalesBtn.addEventListener('click', () => {
+      showToast('La exportacion CSV de Jornales se definira en el siguiente paso.');
+    });
+  }
 
   if (els.settingsForm) els.settingsForm.addEventListener('submit', saveSettings);
   if (els.exportBackupBtn) els.exportBackupBtn.addEventListener('click', exportBackup);
@@ -1361,20 +1387,28 @@ function isEntityUsed(type, id) {
 }
 
 function renderReportsFilters() {
-  els.reportWorker.innerHTML = `<option value="">Todos</option>${state.workers
+  const workerOptions = `<option value="">Todos</option>${state.workers
     .filter(item => item.active)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
 
-  els.reportLabor.innerHTML = `<option value="">Todas</option>${state.labors
+  const laborOptions = `<option value="">Todas</option>${state.labors
     .filter(item => item.active)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
 
-  els.reportField.innerHTML = `<option value="">Todos</option>${state.fields
+  const fieldOptions = `<option value="">Todos</option>${state.fields
     .filter(item => item.active)
     .sort((a, b) => a.name.localeCompare(b.name))
     .map(item => `<option value="${item.id}">${escapeHtml(item.name)}</option>`).join('')}`;
+
+  els.reportWorker.innerHTML = workerOptions;
+  els.reportLabor.innerHTML = laborOptions;
+  els.reportField.innerHTML = fieldOptions;
+
+  if (els.jornalesWorker) els.jornalesWorker.innerHTML = workerOptions;
+  if (els.jornalesLabor) els.jornalesLabor.innerHTML = laborOptions;
+  if (els.jornalesField) els.jornalesField.innerHTML = fieldOptions;
 }
 
 function runReports() {

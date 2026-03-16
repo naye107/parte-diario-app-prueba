@@ -290,8 +290,35 @@
       </section>
 
       <section class="view" id="view-jornales">
-        <article class="card module-placeholder-card">
+        <article class="card">
           <h3>Jornales</h3>
+          <form id="jornalesFilters" class="toolbar-grid reports-grid">
+            <label>
+              <span>Desde</span>
+              <input type="date" id="jornalesFrom">
+            </label>
+            <label>
+              <span>Hasta</span>
+              <input type="date" id="jornalesTo">
+            </label>
+            <label>
+              <span>Trabajador</span>
+              <select id="jornalesWorker"></select>
+            </label>
+            <label>
+              <span>Labor</span>
+              <select id="jornalesLabor"></select>
+            </label>
+            <label>
+              <span>Campo</span>
+              <select id="jornalesField"></select>
+            </label>
+            <div class="button-row align-end report-actions">
+              <button type="submit">Buscar</button>
+              <button type="button" class="secondary-btn" id="downloadJornalesPdfBtn">Descargar PDF</button>
+              <button type="button" class="secondary-btn" id="exportJornalesBtn">Exportar CSV</button>
+            </div>
+          </form>
         </article>
       </section>
 
