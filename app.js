@@ -44,6 +44,7 @@ let showSavedPartRows = false;
 const els = {
   menuToggleBtn: document.getElementById('menuToggleBtn'),
   connectionStatus: document.getElementById('connectionStatus'),
+  syncNowBtn: document.getElementById('syncNowBtn'),
   navButtons: [...document.querySelectorAll('.nav-btn')],
   views: [...document.querySelectorAll('.view')],
   statWorkers: document.getElementById('statWorkers'),
@@ -183,6 +184,7 @@ function bindAuthEvents() {
 
 function bindEvents() {
   els.menuToggleBtn.addEventListener('click', toggleMobileMenu);
+  if (els.syncNowBtn) els.syncNowBtn.addEventListener('click', syncNow);
   els.navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       switchView(btn.dataset.view);
@@ -536,6 +538,29 @@ async function syncStateToServer() {
   }
 }
 
+async function syncNow() {
+  if (!navigator.onLine) {
+    showToast('No hay conexion para sincronizar.');
+    return;
+  }
+
+  if (els.syncNowBtn) els.syncNowBtn.disabled = true;
+  try {
+    await ensureServerSyncAvailable();
+    if (!serverSyncSupported) {
+      showToast('No se pudo conectar con el servidor.');
+      return;
+    }
+    await syncStateToServer();
+    await hydrateStateFromServer();
+    refreshAll();
+    showToast('Sincronizacion completada.');
+  } finally {
+    if (els.syncNowBtn) els.syncNowBtn.disabled = false;
+    updateConnectionStatus();
+  }
+}
+
 async function ensureServerSyncAvailable() {
   if (serverSyncSupported || !navigator.onLine) return;
   try {
@@ -553,21 +578,26 @@ async function ensureServerSyncAvailable() {
 function updateConnectionStatus() {
   if (!navigator.onLine) {
     els.connectionStatus.textContent = 'Sin conexion (guardado local)';
+    if (els.syncNowBtn) els.syncNowBtn.disabled = true;
     return;
   }
   if (!serverSyncSupported) {
     els.connectionStatus.textContent = 'Modo local';
+    if (els.syncNowBtn) els.syncNowBtn.disabled = false;
     return;
   }
   if (serverSyncInFlight) {
     els.connectionStatus.textContent = 'Sincronizando...';
+    if (els.syncNowBtn) els.syncNowBtn.disabled = true;
     return;
   }
   if (serverSyncPending) {
     els.connectionStatus.textContent = 'Pendiente de sincronizar';
+    if (els.syncNowBtn) els.syncNowBtn.disabled = false;
     return;
   }
   els.connectionStatus.textContent = 'Sincronizado con servidor';
+  if (els.syncNowBtn) els.syncNowBtn.disabled = false;
 }
 
 function stateDataScore(snapshot) {
