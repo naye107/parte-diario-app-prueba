@@ -27,6 +27,7 @@ let state = structuredClone(initialState);
 let currentView = 'dashboard';
 let currentPartId = null;
 let lastReportResults = [];
+let lastJornalesResults = [];
 let toastTimer = null;
 let serverSyncSupported = false;
 let serverSyncInFlight = false;
@@ -113,6 +114,9 @@ const els = {
   jornalesField: document.getElementById('jornalesField'),
   downloadJornalesPdfBtn: document.getElementById('downloadJornalesPdfBtn'),
   exportJornalesBtn: document.getElementById('exportJornalesBtn'),
+  jornalesTableBody: document.getElementById('jornalesTableBody'),
+  jornalesCountBadge: document.getElementById('jornalesCountBadge'),
+  jornalesTotalSummary: document.getElementById('jornalesTotalSummary'),
 
   settingsForm: document.getElementById('settingsForm'),
   settingsOwner: document.getElementById('settingsOwner'),
@@ -190,7 +194,7 @@ function bindEvents() {
   if (els.jornalesFilters) {
     els.jornalesFilters.addEventListener('submit', event => {
       event.preventDefault();
-      showToast('El modulo Jornales aun esta en preparacion.');
+      runJornalesReport();
     });
   }
   if (els.downloadJornalesPdfBtn) {
@@ -304,6 +308,7 @@ function switchView(viewName) {
   els.navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.view === viewName));
   els.views.forEach(view => view.classList.toggle('active', view.id === `view-${viewName}`));
   if (viewName === 'reportes') runReports();
+  if (viewName === 'jornales') runJornalesReport();
 }
 
 function toggleMobileMenu() {
@@ -1460,6 +1465,74 @@ function runReports() {
       <td>${escapeHtml(item.campoTarde)}</td>
       <td>${escapeHtml(item.observaciones)}</td>
       <td><span class="status-pill ${item.estado === 'CERRADO' ? 'closed' : 'draft'}">${escapeHtml(item.estado)}</span></td>
+    </tr>
+  `).join('');
+}
+
+function runJornalesReport() {
+  if (!els.jornalesTableBody || !els.jornalesCountBadge || !els.jornalesTotalSummary) return;
+
+  const filters = {
+    from: els.jornalesFrom?.value || '',
+    to: els.jornalesTo?.value || '',
+    workerId: els.jornalesWorker?.value || '',
+    laborId: els.jornalesLabor?.value || '',
+    fieldId: els.jornalesField?.value || ''
+  };
+
+  const grouped = new Map();
+
+  state.parts
+    .filter(part => {
+      if (filters.from && part.date < filters.from) return false;
+      if (filters.to && part.date > filters.to) return false;
+      return true;
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .forEach(part => {
+      part.rows.forEach(row => {
+        if (filters.workerId && row.workerId !== filters.workerId) return;
+        if (filters.laborId && row.morningLaborId !== filters.laborId) return;
+        if (filters.fieldId && row.morningFieldId !== filters.fieldId) return;
+        if (!row.morningLaborId && !row.morningFieldId) return;
+
+        const labor = getNameById(state.labors, row.morningLaborId, 'name') || '-';
+        const field = getNameById(state.fields, row.morningFieldId, 'name') || '-';
+        const key = [part.date, labor, field].join('||');
+        const current = grouped.get(key) || {
+          fecha: part.date,
+          labor,
+          campo: field,
+          totalJornales: 0
+        };
+        current.totalJornales += 1;
+        grouped.set(key, current);
+      });
+    });
+
+  lastJornalesResults = [...grouped.values()].sort((a, b) => {
+    if (a.fecha === b.fecha) {
+      if (a.campo === b.campo) return a.labor.localeCompare(b.labor);
+      return a.campo.localeCompare(b.campo);
+    }
+    return b.fecha.localeCompare(a.fecha);
+  });
+
+  const totalJornales = lastJornalesResults.reduce((acc, item) => acc + item.totalJornales, 0);
+  els.jornalesCountBadge.textContent = `${lastJornalesResults.length} registros`;
+  els.jornalesTotalSummary.textContent = `Total de jornales: ${totalJornales}`;
+
+  if (!lastJornalesResults.length) {
+    els.jornalesTableBody.innerHTML = '<tr><td colspan="4">No se encontraron resultados.</td></tr>';
+    return;
+  }
+
+  els.jornalesTableBody.innerHTML = lastJornalesResults.map(item => `
+    <tr>
+      <td class="no-break">${formatDate(item.fecha)}</td>
+      <td>${escapeHtml(item.labor)}</td>
+      <td>${escapeHtml(item.campo)}</td>
+      <td>${item.totalJornales}</td>
     </tr>
   `).join('');
 }
