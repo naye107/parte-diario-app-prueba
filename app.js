@@ -1501,7 +1501,7 @@ function runReports() {
       if (filters.to && part.date > filters.to) return false;
       return true;
     })
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => a.date.localeCompare(b.date))
     .flatMap(part => part.rows.map(row => ({ part, row })))
     .filter(({ row }) => {
       const matchesWorker = !filters.workerId || row.workerId === filters.workerId;
@@ -1585,7 +1585,7 @@ function runJornalesReport() {
       if (a.campo === b.campo) return a.labor.localeCompare(b.labor);
       return a.campo.localeCompare(b.campo);
     }
-    return b.fecha.localeCompare(a.fecha);
+    return a.fecha.localeCompare(b.fecha);
   });
 
   const totalJornales = lastJornalesResults.reduce((acc, item) => acc + item.totalJornales, 0);
@@ -1633,7 +1633,7 @@ function runPerformanceReport() {
       if (filters.fieldId && item.fieldId !== filters.fieldId) return false;
       return true;
     })
-    .sort((a, b) => b.date.localeCompare(a.date))
+    .sort((a, b) => a.date.localeCompare(b.date))
     .map(item => ({
       ...item,
       trabajador: getNameById(state.workers, item.workerId, 'name'),
