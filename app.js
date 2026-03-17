@@ -37,6 +37,7 @@ let serverSyncTimer = null;
 let networkListenersBound = false;
 let appInitialized = false;
 let currentDraftRow = null;
+let editingPartRowId = null;
 let showSavedPartRows = false;
 
 const els = {
@@ -906,8 +907,8 @@ function renderCurrentPart() {
     <article class="part-row-card" data-row-id="${currentDraftRow.id}">
       <div class="part-row-top">
         <div>
-          <h4>Nuevo registro</h4>
-          <p class="muted">Completa los datos y pulsa Guardar para continuar con el siguiente.</p>
+          <h4>${editingPartRowId ? 'Editar registro' : 'Nuevo registro'}</h4>
+          <p class="muted">${editingPartRowId ? 'Actualiza los datos y pulsa Guardar para aplicar los cambios.' : 'Completa los datos y pulsa Guardar para continuar con el siguiente.'}</p>
         </div>
         <div class="mini-actions">
           <button class="mini-btn" data-action="save-draft">Guardar</button>
@@ -964,12 +965,17 @@ function renderSavedPartRows(part) {
   }
 
   els.partRows.innerHTML = part.rows.map((row, index) => `
-    <article class="part-row-card">
+    <article class="part-row-card" data-row-id="${row.id}">
       <div class="part-row-top">
         <div>
           <h4>Registro ${index + 1}</h4>
           <p class="muted">${escapeHtml(getNameById(state.workers, row.workerId, 'name') || 'Sin trabajador')}</p>
         </div>
+        ${part.status === 'CERRADO' ? '' : `
+        <div class="mini-actions">
+          <button class="secondary-btn mini-btn" data-action="edit-row" data-row-id="${row.id}">Editar</button>
+          <button class="secondary-btn mini-btn danger-outline" data-action="delete-row" data-row-id="${row.id}">Eliminar</button>
+        </div>`}
       </div>
       <div class="row-fields-grid">
         <label>
@@ -1037,6 +1043,7 @@ function deleteCurrentPart() {
 
   markEntityDeleted('parts', 'deletedParts', part, item => item.id);
   currentPartId = null;
+  editingPartRowId = null;
   refreshAll();
   showToast(`Se elimino el parte del ${formatDate(part.date)}.`);
 }
@@ -1051,6 +1058,7 @@ function addPartRow() {
     showToast('El parte esta cerrado y no acepta cambios.');
     return;
   }
+  editingPartRowId = null;
   showSavedPartRows = false;
   ensureDraftRow(part, true);
   renderCurrentPart();
@@ -1065,7 +1073,7 @@ function onPartRowsChange(event) {
 
   const nextValue = event.target.value;
   if (field === 'workerId' && nextValue) {
-    const duplicated = part.rows.some(item => item.workerId === nextValue);
+    const duplicated = part.rows.some(item => item.workerId === nextValue && item.id !== editingPartRowId);
     if (duplicated) {
       event.target.value = currentDraftRow.workerId || '';
       showToast('Ese trabajador ya fue registrado en este parte.');
@@ -1081,8 +1089,11 @@ function onPartRowsClick(event) {
   if (!button) return;
   const action = button.dataset.action;
   const part = getCurrentPart();
-  if (!part || part.status === 'CERRADO') return;
+  if (!part) return;
   if (action === 'save-draft') saveDraftRow();
+  if (part.status === 'CERRADO') return;
+  if (action === 'edit-row') editSavedPartRow(button.dataset.rowId);
+  if (action === 'delete-row') deleteSavedPartRow(button.dataset.rowId);
 }
 
 function saveCurrentPart() {
@@ -1133,6 +1144,7 @@ function copyPreviousPart() {
   if (!previous) return showToast('No existe un parte anterior para copiar.');
   if (part.rows.length && !window.confirm('Este parte ya tiene filas. Se reemplazaran por el contenido del dia anterior.')) return;
   part.rows = previous.rows.map(row => ({ ...row, id: uid() }));
+  editingPartRowId = null;
   currentDraftRow = createEmptyPartRow();
   showSavedPartRows = true;
   part.updatedAt = new Date().toISOString();
@@ -1155,10 +1167,12 @@ function createEmptyPartRow() {
 function ensureDraftRow(part, forceNew = false) {
   if (!part || part.status === 'CERRADO') {
     currentDraftRow = null;
+    editingPartRowId = null;
     return;
   }
   if (forceNew || !currentDraftRow) {
     currentDraftRow = createEmptyPartRow();
+    if (forceNew) editingPartRowId = null;
   }
 }
 
@@ -1170,12 +1184,49 @@ function saveDraftRow() {
     return;
   }
 
-  part.rows.push({ ...currentDraftRow });
+  if (editingPartRowId) {
+    const rowIndex = part.rows.findIndex(item => item.id === editingPartRowId);
+    const nextRow = { ...currentDraftRow, id: editingPartRowId };
+    if (rowIndex >= 0) part.rows[rowIndex] = nextRow;
+    else part.rows.push(nextRow);
+  } else {
+    part.rows.push({ ...currentDraftRow });
+  }
   part.updatedAt = new Date().toISOString();
+  editingPartRowId = null;
   currentDraftRow = createEmptyPartRow();
   showSavedPartRows = false;
   refreshAll();
   showToast('Registro guardado. Puedes continuar con el siguiente.');
+}
+
+function editSavedPartRow(rowId) {
+  const part = getCurrentPart();
+  if (!part || part.status === 'CERRADO') return;
+  const row = part.rows.find(item => item.id === rowId);
+  if (!row) return;
+  currentDraftRow = { ...row };
+  editingPartRowId = row.id;
+  showSavedPartRows = false;
+  renderCurrentPart();
+  showToast('Registro listo para editar.');
+}
+
+function deleteSavedPartRow(rowId) {
+  const part = getCurrentPart();
+  if (!part || part.status === 'CERRADO') return;
+  const row = part.rows.find(item => item.id === rowId);
+  if (!row) return;
+  if (!window.confirm('Eliminar este registro del parte?')) return;
+  part.rows = part.rows.filter(item => item.id !== rowId);
+  if (editingPartRowId === rowId) {
+    editingPartRowId = null;
+    currentDraftRow = createEmptyPartRow();
+  }
+  part.updatedAt = new Date().toISOString();
+  showSavedPartRows = true;
+  refreshAll();
+  showToast('Registro eliminado del parte.');
 }
 
 function currentPartRowsFlat() {
@@ -2824,6 +2875,7 @@ function importBackup(event) {
       state = normalizeState(parsed);
       currentPartId = null;
       currentDraftRow = null;
+      editingPartRowId = null;
       showSavedPartRows = false;
       if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
       refreshAll();
@@ -2847,6 +2899,7 @@ function resetAllData() {
   state = structuredClone(initialState);
   currentPartId = null;
   currentDraftRow = null;
+  editingPartRowId = null;
   showSavedPartRows = false;
   if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
   resetWorkerForm();
