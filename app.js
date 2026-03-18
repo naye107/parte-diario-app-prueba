@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'parte-diario-santa-teresa-v3';
 const SERVER_SYNC_DEBOUNCE_MS = 700;
+const REMOTE_REFRESH_INTERVAL_MS = 20000;
 const HEADER_COMPANY = 'AGRICOLA JAPURIMA S.A.';
 const HEADER_LOCATION = 'Fundo Santa Teresa Bajo - Huaura';
 const SEED_TIMESTAMP = '2026-01-01T00:00:00.000Z';
@@ -34,6 +35,7 @@ let serverSyncSupported = false;
 let serverSyncInFlight = false;
 let serverSyncPending = false;
 let serverSyncTimer = null;
+let remoteRefreshTimer = null;
 let networkListenersBound = false;
 let appInitialized = false;
 let currentDraftRow = null;
@@ -275,12 +277,15 @@ async function checkAuthAndStart() {
 
 async function initMainApp() {
   if (appInitialized) {
+    await hydrateStateFromServer();
+    startRemoteRefreshLoop();
     refreshAll();
     return;
   }
   els.partDate.value = todayISO();
   state = loadState();
   await hydrateStateFromServer();
+  startRemoteRefreshLoop();
   if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
   refreshAll();
   openOrCreatePartForDate(els.partDate.value, false);
@@ -336,6 +341,7 @@ async function onLoginSubmit(event) {
 
 async function onLogoutClick() {
   closeMobileMenu();
+  stopRemoteRefreshLoop();
   try {
     await fetch('./api/auth/logout', { method: 'POST' });
   } catch (_error) {
@@ -640,12 +646,33 @@ function setupNetworkState() {
   if (!networkListenersBound) {
     window.addEventListener('online', () => {
       void ensureServerSyncAvailable();
+      startRemoteRefreshLoop();
       updateConnectionStatus();
     });
-    window.addEventListener('offline', updateConnectionStatus);
+    window.addEventListener('offline', () => {
+      stopRemoteRefreshLoop();
+      updateConnectionStatus();
+    });
     networkListenersBound = true;
   }
   updateConnectionStatus();
+}
+
+function startRemoteRefreshLoop() {
+  if (remoteRefreshTimer || !navigator.onLine) return;
+  remoteRefreshTimer = setInterval(() => {
+    void refreshFromServerIfNeeded();
+  }, REMOTE_REFRESH_INTERVAL_MS);
+}
+
+function stopRemoteRefreshLoop() {
+  if (!remoteRefreshTimer) return;
+  clearInterval(remoteRefreshTimer);
+  remoteRefreshTimer = null;
+}
+
+function statesAreEqual(leftState, rightState) {
+  return JSON.stringify(normalizeState(leftState)) === JSON.stringify(normalizeState(rightState));
 }
 
 async function hydrateStateFromServer() {
@@ -659,6 +686,27 @@ async function hydrateStateFromServer() {
   } catch (_error) {
     serverSyncSupported = false;
   } finally {
+    updateConnectionStatus();
+  }
+}
+
+async function refreshFromServerIfNeeded() {
+  if (!navigator.onLine || !appInitialized || serverSyncInFlight || serverSyncPending) return;
+  try {
+    const remoteState = await fetchServerStateWithRetry();
+    serverSyncSupported = true;
+    const mergedState = mergeStates(state, remoteState);
+    if (statesAreEqual(state, mergedState)) {
+      updateConnectionStatus();
+      return;
+    }
+    state = mergedState;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    if (els.settingsOwner) els.settingsOwner.value = state.settings.owner || '';
+    refreshAll();
+    showToast('Datos actualizados desde otro dispositivo.');
+  } catch (_error) {
+    serverSyncSupported = false;
     updateConnectionStatus();
   }
 }
