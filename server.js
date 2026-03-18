@@ -245,10 +245,18 @@ function reconcileCatalogState(inputState) {
   return stateToFix;
 }
 
+function getMergeRecency(item) {
+  return item?.deletedAt || item?.updatedAt || '';
+}
+
 function mergeByKey(remoteItems, incomingItems, getKey) {
   const merged = new Map();
   [...remoteItems, ...incomingItems].forEach(item => {
-    merged.set(getKey(item), item);
+    const key = getKey(item);
+    const current = merged.get(key);
+    if (!current || getMergeRecency(item).localeCompare(getMergeRecency(current)) >= 0) {
+      merged.set(key, item);
+    }
   });
   return [...merged.values()];
 }
