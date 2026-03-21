@@ -30,6 +30,7 @@ let lastReportResults = [];
 let lastJornalesResults = [];
 let lastPerformanceResults = [];
 let lastPerformanceSummary = [];
+let lastPerformanceWorkerSummary = [];
 let toastTimer = null;
 let serverSyncSupported = false;
 let serverSyncInFlight = false;
@@ -150,6 +151,8 @@ const els = {
   performanceTableBody: document.getElementById('performanceTableBody'),
   performanceSummaryCountBadge: document.getElementById('performanceSummaryCountBadge'),
   performanceSummaryTableBody: document.getElementById('performanceSummaryTableBody'),
+  performanceWorkerSummaryCountBadge: document.getElementById('performanceWorkerSummaryCountBadge'),
+  performanceWorkerSummaryTableBody: document.getElementById('performanceWorkerSummaryTableBody'),
 
   settingsForm: document.getElementById('settingsForm'),
   settingsOwner: document.getElementById('settingsOwner'),
@@ -2002,6 +2005,7 @@ function runPerformanceReport() {
   const average = totalJornales > 0 ? (totalQuantity / totalJornales) : 0;
   const averageUnit = lastPerformanceResults[0]?.unit || '';
   const summaryMap = new Map();
+  const workerSummaryMap = new Map();
 
   lastPerformanceResults.forEach(item => {
     const normalizedUnit = normalizeUnit(item.unit);
@@ -2018,10 +2022,28 @@ function runPerformanceReport() {
     current.totalJornales += item.jornales;
     current.rendimiento = current.totalJornales > 0 ? (current.totalCantidad / current.totalJornales) : 0;
     summaryMap.set(key, current);
+
+    const workerKey = [item.trabajador, item.labor, normalizedUnit].join('||');
+    const currentWorker = workerSummaryMap.get(workerKey) || {
+      trabajador: item.trabajador,
+      labor: item.labor,
+      unidad: normalizedUnit,
+      totalCantidad: 0,
+      totalJornales: 0,
+      rendimiento: 0
+    };
+    currentWorker.totalCantidad += item.quantity;
+    currentWorker.totalJornales += item.jornales;
+    currentWorker.rendimiento = currentWorker.totalJornales > 0 ? (currentWorker.totalCantidad / currentWorker.totalJornales) : 0;
+    workerSummaryMap.set(workerKey, currentWorker);
   });
   lastPerformanceSummary = [...summaryMap.values()].sort((a, b) => {
     if (a.campo === b.campo) return a.labor.localeCompare(b.labor);
     return a.campo.localeCompare(b.campo);
+  });
+  lastPerformanceWorkerSummary = [...workerSummaryMap.values()].sort((a, b) => {
+    if (a.trabajador === b.trabajador) return a.labor.localeCompare(b.labor);
+    return a.trabajador.localeCompare(b.trabajador);
   });
 
   if (els.performanceTotalJornales) els.performanceTotalJornales.textContent = formatDecimal(totalJornales);
@@ -2030,11 +2052,15 @@ function runPerformanceReport() {
   if (els.performanceCount) els.performanceCount.textContent = String(lastPerformanceResults.length);
   if (els.performanceCountBadge) els.performanceCountBadge.textContent = `${lastPerformanceResults.length} registros`;
   if (els.performanceSummaryCountBadge) els.performanceSummaryCountBadge.textContent = `${lastPerformanceSummary.length} grupos`;
+  if (els.performanceWorkerSummaryCountBadge) els.performanceWorkerSummaryCountBadge.textContent = `${lastPerformanceWorkerSummary.length} grupos`;
 
   if (!lastPerformanceResults.length) {
     els.performanceTableBody.innerHTML = '<tr><td colspan="9">No se encontraron resultados.</td></tr>';
     if (els.performanceSummaryTableBody) {
       els.performanceSummaryTableBody.innerHTML = '<tr><td colspan="6">No se encontraron resultados.</td></tr>';
+    }
+    if (els.performanceWorkerSummaryTableBody) {
+      els.performanceWorkerSummaryTableBody.innerHTML = '<tr><td colspan="6">No se encontraron resultados.</td></tr>';
     }
     return;
   }
@@ -2062,6 +2088,19 @@ function runPerformanceReport() {
     els.performanceSummaryTableBody.innerHTML = lastPerformanceSummary.map(item => `
       <tr>
         <td>${escapeHtml(item.campo)}</td>
+        <td>${escapeHtml(item.labor)}</td>
+        <td>${formatDecimal(item.totalCantidad)}</td>
+        <td>${escapeHtml(item.unidad)}</td>
+        <td>${formatDecimal(item.totalJornales)}</td>
+        <td>${formatDecimal(item.rendimiento)} ${escapeHtml(item.unidad)}/jornal</td>
+      </tr>
+    `).join('');
+  }
+
+  if (els.performanceWorkerSummaryTableBody) {
+    els.performanceWorkerSummaryTableBody.innerHTML = lastPerformanceWorkerSummary.map(item => `
+      <tr>
+        <td>${escapeHtml(item.trabajador)}</td>
         <td>${escapeHtml(item.labor)}</td>
         <td>${formatDecimal(item.totalCantidad)}</td>
         <td>${escapeHtml(item.unidad)}</td>
@@ -2172,7 +2211,7 @@ function downloadPerformancePDF() {
   }
 
   const container = document.createElement('div');
-  container.innerHTML = buildPerformancePrintableBody(lastPerformanceResults, lastPerformanceSummary);
+    container.innerHTML = buildPerformancePrintableBody(lastPerformanceResults, lastPerformanceSummary, lastPerformanceWorkerSummary);
   const printable = container.firstElementChild;
   if (!printable) {
     showToast('No se pudo preparar el PDF de rendimiento.');
@@ -2694,7 +2733,7 @@ function buildJornalesPrintableBody(rows) {
   `;
 }
 
-function buildPerformancePrintableBody(rows, summaryRows) {
+function buildPerformancePrintableBody(rows, summaryRows, workerSummaryRows) {
   const logoUrl = getLogoUrl();
   const generatedAt = new Date().toLocaleString('es-PE');
   const totalJornales = rows.reduce((acc, item) => acc + item.jornales, 0);
@@ -2719,6 +2758,17 @@ function buildPerformancePrintableBody(rows, summaryRows) {
   const printableSummaryRows = summaryRows.map(row => `
     <tr>
       <td>${escapeHtml(row.campo)}</td>
+      <td>${escapeHtml(row.labor)}</td>
+      <td class="center">${formatDecimal(row.totalCantidad)}</td>
+      <td>${escapeHtml(row.unidad)}</td>
+      <td class="center">${formatDecimal(row.totalJornales)}</td>
+      <td>${formatDecimal(row.rendimiento)} ${escapeHtml(row.unidad)}/jornal</td>
+    </tr>
+  `).join('');
+
+  const printableWorkerSummaryRows = workerSummaryRows.map(row => `
+    <tr>
+      <td>${escapeHtml(row.trabajador)}</td>
       <td>${escapeHtml(row.labor)}</td>
       <td class="center">${formatDecimal(row.totalCantidad)}</td>
       <td>${escapeHtml(row.unidad)}</td>
@@ -2898,6 +2948,25 @@ function buildPerformancePrintableBody(rows, summaryRows) {
             ${printableSummaryRows || '<tr><td colspan="6">Sin datos</td></tr>'}
             <tr class="summary-row">
               <td colspan="6">Total de registros: ${rows.length}</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="table-title">Consolidado por trabajador y labor</p>
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 22%;">TRABAJADOR</th>
+              <th style="width: 24%;">LABOR</th>
+              <th style="width: 14%;">TOTAL CANTIDAD</th>
+              <th style="width: 12%;">UNIDAD</th>
+              <th style="width: 14%;">TOTAL JORNALES</th>
+              <th style="width: 14%;">RENDIMIENTO</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printableWorkerSummaryRows || '<tr><td colspan="6">Sin datos</td></tr>'}
+            <tr class="summary-row">
+              <td colspan="6">Total de grupos: ${workerSummaryRows.length}</td>
             </tr>
           </tbody>
         </table>
